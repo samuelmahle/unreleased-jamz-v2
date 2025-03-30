@@ -1,6 +1,6 @@
-
 import React from "react";
 import UploadForm from "@/components/UploadForm";
+import { Song } from "@/types/song";
 
 interface UploadPageProps {
   onSongUpload: (song: Song) => void;

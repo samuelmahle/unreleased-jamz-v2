@@ -1,4 +1,6 @@
 
+import { Song } from "@/types/song";
+
 const sampleSongs: Song[] = [
   {
     id: "1",

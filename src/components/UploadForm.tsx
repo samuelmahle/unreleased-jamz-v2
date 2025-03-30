@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Upload, Music, Image as ImageIcon } from "lucide-react";
+import { Song } from "@/types/song";
 
 interface UploadFormProps {
   onSongUpload: (song: Song) => void;

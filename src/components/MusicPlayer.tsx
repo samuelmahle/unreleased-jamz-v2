@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { 
   Play, Pause, SkipBack, SkipForward, 
@@ -6,6 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Slider } from "@/components/ui/slider";
+import { Song } from "@/types/song";
 
 interface MusicPlayerProps {
   currentSong: Song | null;
@@ -28,7 +28,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  // Update audio element when currentSong changes
   useEffect(() => {
     if (currentSong && audioRef.current) {
       if (isPlaying) {
@@ -39,7 +38,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
   }, [currentSong, isPlaying]);
 
-  // Set up time update listener
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -67,7 +65,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
     };
   }, [onNext]);
 
-  // Control play/pause
   useEffect(() => {
     if (audioRef.current) {
       if (isPlaying) {
@@ -80,7 +77,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
     }
   }, [isPlaying]);
 
-  // Control volume
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = isMuted ? 0 : volume;
@@ -114,7 +110,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
       />
       
       <div className="flex flex-col space-y-2">
-        {/* Progress bar */}
         <div className="w-full">
           <Slider
             value={[currentTime]}
@@ -130,7 +125,6 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
           </div>
         </div>
         
-        {/* Controls */}
         <div className="flex items-center justify-between max-w-screen-lg mx-auto w-full">
           <div className="w-1/3 flex items-center">
             {currentSong && (

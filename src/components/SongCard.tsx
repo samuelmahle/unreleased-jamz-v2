@@ -1,4 +1,3 @@
-
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
 import { Heart, MoreHorizontal, Play } from "lucide-react";
@@ -10,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Song } from "@/types/song";
 
 interface SongCardProps {
   song: Song;
