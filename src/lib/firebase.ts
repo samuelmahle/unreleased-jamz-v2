@@ -5,12 +5,12 @@ import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove }
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "your-app.firebaseapp.com",
-  projectId: "your-app",
-  storageBucket: "your-app.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: process.env.FIREBASE_API_KEY || "YOUR_ACTUAL_API_KEY",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "your-actual-project-id.firebaseapp.com",
+  projectId: process.env.FIREBASE_PROJECT_ID || "your-actual-project-id",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "your-actual-project-id.appspot.com",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "your-actual-messaging-sender-id",
+  appId: process.env.FIREBASE_APP_ID || "your-actual-app-id"
 };
 
 // Initialize Firebase
