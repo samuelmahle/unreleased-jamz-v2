@@ -3,6 +3,10 @@ import React, { useState, useEffect } from "react";
 import SongCard from "@/components/SongCard";
 import MusicPlayer from "@/components/MusicPlayer";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { toggleFavorite } from "@/lib/firebase";
+import { toast } from "sonner";
+import { Song } from "@/types/song";
 
 interface HomePageProps {
   songs: Song[];
@@ -13,7 +17,8 @@ interface HomePageProps {
 const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
+  const { currentUser, userFavorites } = useAuth();
 
   // Filter songs based on search term
   const filteredSongs = songs.filter(
@@ -22,6 +27,18 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
       song.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
       song.genre.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Update songs to reflect user favorites
+  useEffect(() => {
+    if (userFavorites.length > 0) {
+      setSongs(prevSongs => 
+        prevSongs.map(song => ({
+          ...song,
+          isFavorite: userFavorites.includes(song.id)
+        }))
+      );
+    }
+  }, [userFavorites, setSongs]);
 
   const playSong = (song: Song) => {
     setCurrentSong(song);
@@ -50,21 +67,37 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
     setIsPlaying(true);
   };
 
-  const toggleFavorite = (songId: string) => {
-    setSongs((prevSongs) =>
-      prevSongs.map((song) =>
-        song.id === songId
-          ? { ...song, isFavorite: !song.isFavorite }
-          : song
-      )
-    );
+  const handleToggleFavorite = async (songId: string) => {
+    if (!currentUser) {
+      toast.error("Please login to favorite songs");
+      return;
+    }
     
     const song = songs.find((s) => s.id === songId);
-    if (song) {
-      toast({
-        title: song.isFavorite ? "Removed from favorites" : "Added to favorites",
-        description: `"${song.title}" by ${song.artist}`,
-      });
+    if (!song) return;
+    
+    const newFavoriteStatus = !song.isFavorite;
+    
+    try {
+      // Update Firebase
+      await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
+      
+      // Update local state
+      setSongs((prevSongs) =>
+        prevSongs.map((s) =>
+          s.id === songId
+            ? { ...s, isFavorite: newFavoriteStatus }
+            : s
+        )
+      );
+      
+      toast.success(
+        newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
+        { description: `"${song.title}" by ${song.artist}` }
+      );
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      toast.error("Failed to update favorite status");
     }
   };
 
@@ -97,7 +130,7 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
               key={song.id}
               song={song}
               onClick={() => playSong(song)}
-              onFavorite={toggleFavorite}
+              onFavorite={handleToggleFavorite}
               isActive={currentSong?.id === song.id}
             />
           ))}
