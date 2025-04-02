@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from '../contexts/AuthContext';
 import { formatDistanceToNow } from "date-fns";
 import { Heart, Share2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   Tooltip,
   TooltipContent,
@@ -24,18 +25,17 @@ const isValidSoundCloudUrl = (url: string | null): boolean => {
 
 interface SongCardProps {
   song: Song;
-  onClick: () => void;
   onFavorite: (songId: string) => void;
   isActive: boolean;
 }
 
 const SongCard: React.FC<SongCardProps> = ({
   song,
-  onClick,
   onFavorite,
   isActive,
 }) => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,7 +44,7 @@ const SongCard: React.FC<SongCardProps> = ({
         description: 'Create an account to start building your collection',
         action: {
           label: 'Login',
-          onClick: () => window.location.href = '/login'
+          onClick: () => navigate('/login')
         },
       });
       return;
@@ -76,7 +76,7 @@ const SongCard: React.FC<SongCardProps> = ({
       className={`song-card relative flex flex-col bg-music-surface rounded-lg overflow-hidden cursor-pointer p-2 sm:p-4 ${
         isActive ? "border-2 border-music" : "border border-gray-800"
       }`}
-      onClick={onClick}
+      onClick={() => navigate(`/song/${song.id}`)}
     >
       <div className="mb-2 sm:mb-3">
         <h3 className="text-base sm:text-lg font-semibold mb-0.5 sm:mb-1 truncate text-white">{song.title}</h3>

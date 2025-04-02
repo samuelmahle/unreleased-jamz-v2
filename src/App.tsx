@@ -11,6 +11,7 @@ import UploadPage from "@/pages/UploadPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import ProfilePage from "@/pages/ProfilePage";
+import SongPage from "@/pages/SongPage";
 
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,6 +45,7 @@ function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/song/:id" element={<SongPage />} />
               </Routes>
             </div>
           </main>
