@@ -15,11 +15,11 @@ interface HomePageProps {
   searchTerm: string;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
+const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm }) => {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast: uiToast } = useToast();
-  const { currentUser, userFavorites } = useAuth();
+  const { currentUser, userFavorites = [] } = useAuth();
   const [activeSong, setActiveSong] = useState<string | null>(null);
   const [showReleasingThisWeek, setShowReleasingThisWeek] = useState(false);
 
@@ -38,11 +38,11 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
     return song.favoritedAt.filter(date => new Date(date) >= weekAgo).length;
   };
 
-  const sortedAndFilteredSongs = songs
+  const sortedAndFilteredSongs = (songs || [])
     .filter(song => {
       const matchesSearch = 
-        song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.artist.toLowerCase().includes(searchTerm.toLowerCase());
+        song.title.toLowerCase().includes((searchTerm || '').toLowerCase()) ||
+        song.artist.toLowerCase().includes((searchTerm || '').toLowerCase());
       
       const matchesRelease = !showReleasingThisWeek || isReleasingThisWeek(song.releaseDate);
       
@@ -52,15 +52,35 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
 
   // Update songs to reflect user favorites
   useEffect(() => {
-    if (userFavorites.length > 0) {
+    if (songs?.length > 0) {
       setSongs(prevSongs => 
-        prevSongs.map(song => ({
-          ...song,
-          isFavorite: userFavorites.includes(song.id)
-        }))
+        prevSongs.map(song => {
+          const isFavorite = userFavorites.includes(song.id);
+          const favoritedBy = song.favoritedBy || [];
+          const favoritedAt = song.favoritedAt || [];
+          
+          // If the song is favorited but not in favoritedBy, add it
+          if (isFavorite && !favoritedBy.includes(currentUser?.uid)) {
+            favoritedBy.push(currentUser?.uid);
+            favoritedAt.push(new Date().toISOString());
+          }
+          // If the song is not favorited but in favoritedBy, remove it
+          if (!isFavorite && favoritedBy.includes(currentUser?.uid)) {
+            const index = favoritedBy.indexOf(currentUser?.uid);
+            favoritedBy.splice(index, 1);
+            favoritedAt.splice(index, 1);
+          }
+          
+          return {
+            ...song,
+            isFavorite,
+            favoritedBy,
+            favoritedAt
+          };
+        })
       );
     }
-  }, [userFavorites, setSongs]);
+  }, [userFavorites, setSongs, songs, currentUser?.uid]);
 
   const playSong = (song: Song) => {
     setCurrentSong(song);
@@ -104,15 +124,6 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
       // Update Firebase
       await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
       
-      // Update local state
-      setSongs((prevSongs) =>
-        prevSongs.map((s) =>
-          s.id === songId
-            ? { ...s, isFavorite: newFavoriteStatus }
-            : s
-        )
-      );
-      
       toast.success(
         newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
         { description: `"${song.title}" by ${song.artist}` }
@@ -123,39 +134,10 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
     }
   };
 
-  const handleFavorite = async (songId: string) => {
-    if (!currentUser) return;
-
-    const song = songs.find(s => s.id === songId);
-    if (!song) return;
-
-    const isFavoriting = !song.isFavorite;
-    
-    // Optimistically update UI
-    setSongs(songs.map(s => {
-      if (s.id === songId) {
-        return {
-          ...s,
-          isFavorite: isFavoriting,
-          favoritedBy: isFavoriting 
-            ? [...(s.favoritedBy || []), currentUser.uid]
-            : (s.favoritedBy || []).filter(id => id !== currentUser.uid),
-          favoritedAt: isFavoriting
-            ? [...(s.favoritedAt || []), new Date().toISOString()]
-            : s.favoritedAt
-        };
-      }
-      return s;
-    }));
-
-    // Update backend
-    await toggleFavorite(currentUser.uid, songId, isFavoriting);
-  };
-
   return (
-    <div className="pt-6 pb-32">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Trending This Week</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Trending This Week</h1>
         <div className="flex items-center space-x-2">
           <Switch
             checked={showReleasingThisWeek}
@@ -177,14 +159,14 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           {sortedAndFilteredSongs.map((song) => (
             <SongCard
               key={song.id}
               song={song}
               isActive={activeSong === song.id}
               onClick={() => setActiveSong(song.id)}
-              onFavorite={handleFavorite}
+              onFavorite={handleToggleFavorite}
             />
           ))}
         </div>

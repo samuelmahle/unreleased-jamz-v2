@@ -14,9 +14,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const auth = getAuth(app);
 
 interface UserData {
   username: string;
@@ -56,7 +56,9 @@ export const logoutUser = async () => {
 export const toggleFavorite = async (userId: string, songId: string, isFavoriting: boolean) => {
   try {
     const songRef = doc(db, 'songs', songId);
+    const userRef = doc(db, 'users', userId);
     const songDoc = await getDoc(songRef);
+    const userDoc = await getDoc(userRef);
 
     if (!songDoc.exists()) {
       throw new Error('Song not found');
@@ -66,6 +68,7 @@ export const toggleFavorite = async (userId: string, songId: string, isFavoritin
     const currentFavoritedAt = songDoc.data().favoritedAt || [];
     const timestamp = new Date().toISOString();
 
+    // Update song document
     if (isFavoriting) {
       await updateDoc(songRef, {
         favoritedBy: arrayUnion(userId),
@@ -80,6 +83,19 @@ export const toggleFavorite = async (userId: string, songId: string, isFavoritin
         favoritedBy: arrayRemove(userId),
         favoritedAt: updatedFavoritedAt
       });
+    }
+
+    // Update user's favorites array
+    if (userDoc.exists()) {
+      if (isFavoriting) {
+        await updateDoc(userRef, {
+          favorites: arrayUnion(songId)
+        });
+      } else {
+        await updateDoc(userRef, {
+          favorites: arrayRemove(songId)
+        });
+      }
     }
 
     return true;

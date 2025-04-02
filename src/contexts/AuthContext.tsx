@@ -1,78 +1,96 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
-import { auth, getFavorites } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-
-interface UserProfile {
-  username: string;
-  email: string;
-  createdAt: string;
-  uploadCount: number;
-  isPublic: boolean;
-  firebaseUser: User;
-  uid: string;
-  profileData: any;
-}
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { 
+  User,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  sendEmailVerification,
+  Auth,
+  getAuth
+} from "firebase/auth";
+import { app, db } from "@/lib/firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
 interface AuthContextType {
   currentUser: User | null;
+  auth: Auth;
   userFavorites: string[];
-  loading: boolean;
-  user: UserProfile | null;
+  register: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  sendVerificationEmail: (user: User) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ 
-  currentUser: null, 
-  userFavorites: [],
-  loading: true,
-  user: null
-});
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const auth = getAuth(app);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      setCurrentUser(firebaseUser);
-      
-      if (firebaseUser) {
-        // Get user favorites
-        const favorites = await getFavorites(firebaseUser.uid);
-        setUserFavorites(favorites);
-
-        // Get user profile data
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setUser({
-            ...userData,
-            firebaseUser,
-            uid: firebaseUser.uid,
-            profileData: userData
-          } as UserProfile);
-        }
-      } else {
-        setUserFavorites([]);
-        setUser(null);
-      }
-      
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [auth]);
+
+  // Listen for changes to user favorites
+  useEffect(() => {
+    if (!currentUser) {
+      setUserFavorites([]);
+      return;
+    }
+
+    const userRef = doc(db, 'users', currentUser.uid);
+    const unsubscribe = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        setUserFavorites(doc.data().favorites || []);
+      } else {
+        setUserFavorites([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  const register = async (email: string, password: string) => {
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await sendEmailVerification(userCredential.user);
+  };
+
+  const login = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+  };
+
+  const sendVerificationEmail = async (user: User) => {
+    await sendEmailVerification(user);
+  };
 
   const value = {
     currentUser,
+    auth,
     userFavorites,
-    loading,
-    user
+    register,
+    login,
+    logout,
+    sendVerificationEmail,
   };
 
   return (
@@ -80,4 +98,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {!loading && children}
     </AuthContext.Provider>
   );
-};
+}

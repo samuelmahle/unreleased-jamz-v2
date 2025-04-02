@@ -64,7 +64,6 @@ const SongCard: React.FC<SongCardProps> = ({
     }
   };
 
-  const favoriteCount = song.favoritedBy?.length || 0;
   const formatFavoriteCount = (count: number) => {
     if (count === 0) return '0';
     if (count < 1000) return count.toString();
@@ -74,17 +73,17 @@ const SongCard: React.FC<SongCardProps> = ({
 
   return (
     <div
-      className={`song-card relative flex flex-col bg-music-surface rounded-lg overflow-hidden cursor-pointer p-4 ${
+      className={`song-card relative flex flex-col bg-music-surface rounded-lg overflow-hidden cursor-pointer p-2 sm:p-4 ${
         isActive ? "border-2 border-music" : "border border-gray-800"
       }`}
       onClick={onClick}
     >
-      <div className="mb-4">
-        <h3 className="text-xl font-semibold mb-1 truncate text-white">{song.title}</h3>
-        <p className="text-lg text-gray-300 truncate">{song.artist}</p>
+      <div className="mb-2 sm:mb-3">
+        <h3 className="text-base sm:text-lg font-semibold mb-0.5 sm:mb-1 truncate text-white">{song.title}</h3>
+        <p className="text-sm sm:text-base text-gray-300 truncate">{song.artist}</p>
       </div>
 
-      <div className="aspect-[4/3] mb-4">
+      <div className="aspect-[16/9] sm:aspect-[4/3] mb-2 sm:mb-3">
         {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) ? (
           <iframe
             width="100%"
@@ -97,26 +96,28 @@ const SongCard: React.FC<SongCardProps> = ({
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
-            <p className="text-gray-400 text-sm">Link not available</p>
+            <p className="text-gray-400 text-xs sm:text-sm">Link not available</p>
           </div>
         )}
       </div>
       
       <div className="flex justify-between items-center mt-auto">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-1.5 sm:space-x-3">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  className="h-10 w-10 inline-flex flex-col items-center justify-center rounded-md hover:bg-gray-700 transition-colors"
+                  className="h-8 sm:h-10 w-8 sm:w-10 inline-flex flex-col items-center justify-center rounded-md hover:bg-gray-700 transition-colors"
                   onClick={handleFavorite}
                 >
                   <Heart
-                    className={`h-5 w-5 ${
+                    className={`h-3.5 sm:h-5 w-3.5 sm:w-5 ${
                       song.isFavorite ? "fill-music-accent text-music-accent" : "text-gray-400 hover:text-white"
                     }`}
                   />
-                  <span className="text-xs mt-0.5 text-gray-400">{formatFavoriteCount(favoriteCount)}</span>
+                  <span className="text-[10px] sm:text-xs mt-0.5 text-gray-400">
+                    {formatFavoriteCount(song.favoritedBy?.length || 0)}
+                  </span>
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -129,10 +130,10 @@ const SongCard: React.FC<SongCardProps> = ({
             <Tooltip>
               <TooltipTrigger asChild>
                 <button 
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors"
+                  className="h-8 sm:h-10 w-8 sm:w-10 inline-flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors"
                   onClick={handleShare}
                 >
-                  <Share2 className="h-5 w-5 text-gray-400 hover:text-white" />
+                  <Share2 className="h-3.5 sm:h-5 w-3.5 sm:w-5 text-gray-400 hover:text-white" />
                 </button>
               </TooltipTrigger>
               <TooltipContent>
@@ -142,7 +143,7 @@ const SongCard: React.FC<SongCardProps> = ({
           </TooltipProvider>
         </div>
 
-        <span className="text-xs text-gray-400">
+        <span className="text-[10px] sm:text-xs text-gray-400">
           {isValidDate(song.releaseDate)
             ? formatDistanceToNow(new Date(song.releaseDate!), { addSuffix: true })
             : 'Release date unknown'}

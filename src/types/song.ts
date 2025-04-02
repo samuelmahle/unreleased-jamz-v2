@@ -5,13 +5,14 @@ export interface Song {
   genre: string;
   releaseDate: string | null;
   audioUrl?: string;
-  soundcloudUrl?: string;
+  soundcloudUrl: string | null;
   soundcloudEmbed?: string;
   imageUrl?: string;
   isFavorite: boolean;
   uploadDate: string;
   createdAt?: string;
-  favoritedBy?: string[];
-  favoritedAt?: string[];
+  favoritedBy: string[];
+  favoritedAt: string[];
+  favoriteCount: number;
   updatedAt: string;
 }
