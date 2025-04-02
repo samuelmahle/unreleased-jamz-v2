@@ -1,4 +1,3 @@
-
 export interface Song {
   id: string;
   title: string;
@@ -7,10 +6,12 @@ export interface Song {
   releaseDate: string | null;
   audioUrl?: string;
   soundcloudUrl?: string;
+  soundcloudEmbed?: string;
   imageUrl?: string;
   isFavorite: boolean;
   uploadDate: string;
   createdAt?: string;
-  favoritedAt?: string[];
   favoritedBy?: string[];
+  favoritedAt?: string[];
+  updatedAt: string;
 }

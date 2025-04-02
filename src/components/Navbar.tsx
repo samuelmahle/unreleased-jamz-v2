@@ -1,7 +1,6 @@
-
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Music, Search, Upload, Library, Home, LogIn, UserPlus, LogOut } from "lucide-react";
+import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +12,7 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, user } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -56,13 +55,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
             Home
           </Button>
         </Link>
-        <Link to="/library">
+        <Link to="/favorites">
           <Button
             variant="ghost"
             className="w-full justify-start text-md font-normal"
           >
-            <Library className="mr-2 h-5 w-5" />
-            Library
+            <Heart className="mr-2 h-5 w-5" />
+            Favorites
           </Button>
         </Link>
         <Link to="/upload">
@@ -97,28 +96,37 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
             </Link>
           </>
         ) : (
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-md font-normal"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-2 h-5 w-5" />
-            Logout
-          </Button>
+          <>
+            <Link to="/profile">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-md font-normal"
+              >
+                <User className="mr-2 h-5 w-5" />
+                Profile
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-md font-normal"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2 h-5 w-5" />
+              Logout
+            </Button>
+          </>
         )}
       </nav>
       
       <div className="mt-auto">
-        {currentUser ? (
-          <div className="p-3 bg-secondary rounded-md mb-3">
-            <p className="text-sm font-medium truncate">{currentUser.email}</p>
-            <p className="text-xs text-muted-foreground">Logged In</p>
-          </div>
+        {currentUser && user ? (
+          <Link to="/profile">
+            <div className="p-3 bg-secondary rounded-md mb-3 hover:bg-secondary/80 transition-colors">
+              <p className="text-sm font-medium truncate">{user.username}</p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          </Link>
         ) : null}
-
-        <Button className="w-full bg-music hover:bg-music-light">
-          <Upload className="mr-2 h-5 w-5" /> Upload Track
-        </Button>
       </div>
     </div>
   );

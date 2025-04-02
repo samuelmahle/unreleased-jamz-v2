@@ -1,15 +1,26 @@
 import React from "react";
+import { useAuth } from '../contexts/AuthContext';
 import { formatDistanceToNow } from "date-fns";
-import { Heart, MoreHorizontal, Play } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Heart, Share2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Song } from "@/types/song";
+} from "../components/ui/tooltip";
+import { toast } from "sonner";
+import { Song } from "../types/song";
+
+const isValidDate = (dateString: string | null): boolean => {
+  if (!dateString) return false;
+  const date = new Date(dateString);
+  return date instanceof Date && !isNaN(date.getTime());
+};
+
+const isValidSoundCloudUrl = (url: string | null): boolean => {
+  if (!url) return false;
+  return url.startsWith('https://soundcloud.com/') || url.startsWith('https://on.soundcloud.com/');
+};
 
 interface SongCardProps {
   song: Song;
@@ -24,60 +35,79 @@ const SongCard: React.FC<SongCardProps> = ({
   onFavorite,
   isActive,
 }) => {
-  const handleFavorite = (e: React.MouseEvent) => {
+  const { currentUser } = useAuth();
+
+  const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
     onFavorite(song.id);
   };
 
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const url = `${window.location.origin}/song/${song.id}`;
+    
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copied to clipboard!');
+    } catch (err) {
+      toast.error('Failed to copy link');
+    }
+  };
+
+  const favoriteCount = song.favoritedBy?.length || 0;
+  const formatFavoriteCount = (count: number) => {
+    if (count === 0) return '0';
+    if (count < 1000) return count.toString();
+    if (count < 1000000) return `${(count / 1000).toFixed(1)}K`;
+    return `${(count / 1000000).toFixed(1)}M`;
+  };
+
   return (
     <div
-      className={cn(
-        "song-card relative flex flex-col bg-music-surface rounded-lg overflow-hidden cursor-pointer p-3",
-        isActive && "border border-music"
-      )}
+      className={`song-card relative flex flex-col bg-music-surface rounded-lg overflow-hidden cursor-pointer p-4 ${
+        isActive ? "border-2 border-music" : "border border-gray-800"
+      }`}
       onClick={onClick}
     >
-      <div className="relative aspect-square mb-3 group">
-        <img
-          src={song.imageUrl || "/placeholder.svg"}
-          alt={song.title}
-          className="w-full h-full object-cover rounded-md"
-        />
-        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
-          <Button
-            size="icon"
-            variant="secondary"
-            className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-music text-white hover:bg-music-light"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick();
-            }}
-          >
-            <Play className="h-5 w-5" />
-          </Button>
-        </div>
+      <div className="mb-4">
+        <h3 className="text-xl font-semibold mb-1 truncate text-white">{song.title}</h3>
+        <p className="text-lg text-gray-300 truncate">{song.artist}</p>
+      </div>
+
+      <div className="aspect-[4/3] mb-4">
+        {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) ? (
+          <iframe
+            width="100%"
+            height="100%"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=${isActive ? 'true' : 'false'}&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`}
+            style={{ display: 'block' }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-800 rounded-lg">
+            <p className="text-gray-400 text-sm">Link not available</p>
+          </div>
+        )}
       </div>
       
-      <div className="flex justify-between items-start">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium truncate">{song.title}</h3>
-          <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
-        </div>
-        
-        <div className="flex items-center">
+      <div className="flex justify-between items-center mt-auto">
+        <div className="flex items-center space-x-3">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
+                <button
+                  className="h-10 w-10 inline-flex flex-col items-center justify-center rounded-md hover:bg-gray-700 transition-colors"
                   onClick={handleFavorite}
                 >
                   <Heart
-                    className={cn("h-4 w-4", song.isFavorite ? "fill-music-accent text-music-accent" : "text-muted-foreground")}
+                    className={`h-5 w-5 ${
+                      song.isFavorite ? "fill-music-accent text-music-accent" : "text-gray-400 hover:text-white"
+                    }`}
                   />
-                </Button>
+                  <span className="text-xs mt-0.5 text-gray-400">{formatFavoriteCount(favoriteCount)}</span>
+                </button>
               </TooltipTrigger>
               <TooltipContent>
                 <p>{song.isFavorite ? "Remove from favorites" : "Add to favorites"}</p>
@@ -88,22 +118,24 @@ const SongCard: React.FC<SongCardProps> = ({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
+                <button 
+                  className="h-10 w-10 inline-flex items-center justify-center rounded-md hover:bg-gray-700 transition-colors"
+                  onClick={handleShare}
+                >
+                  <Share2 className="h-5 w-5 text-gray-400 hover:text-white" />
+                </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>More options</p>
+                <p>Copy share link</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
-      </div>
-      
-      <div className="flex justify-between mt-auto pt-2">
-        <span className="text-xs text-muted-foreground">{song.genre}</span>
-        <span className="text-xs text-muted-foreground">
-          {formatDistanceToNow(new Date(song.releaseDate), { addSuffix: true })}
+
+        <span className="text-xs text-gray-400">
+          {isValidDate(song.releaseDate)
+            ? formatDistanceToNow(new Date(song.releaseDate!), { addSuffix: true })
+            : 'Release date unknown'}
         </span>
       </div>
     </div>
