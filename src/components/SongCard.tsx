@@ -39,6 +39,16 @@ const SongCard: React.FC<SongCardProps> = ({
 
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!currentUser) {
+      toast.error('Please login to favorite songs', {
+        description: 'Create an account to start building your collection',
+        action: {
+          label: 'Login',
+          onClick: () => window.location.href = '/login'
+        },
+      });
+      return;
+    }
     onFavorite(song.id);
   };
 

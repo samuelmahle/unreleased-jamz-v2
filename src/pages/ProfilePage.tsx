@@ -106,7 +106,9 @@ const ProfilePage = () => {
           </div>
 
           <div>
-            <label className="block text-base font-medium mb-2">New Password</label>
+            <label className="block text-base font-medium mb-2">
+              {isEditing ? "New Password" : "Password"}
+            </label>
             <Input
               type="password"
               value={newPassword}

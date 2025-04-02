@@ -6,13 +6,14 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { logoutUser } from "@/lib/firebase";
 import { toast } from "sonner";
+import { SearchInput } from "./SearchInput";
 
 interface NavbarProps {
   onSearch: (term: string) => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
-  const { currentUser, user } = useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -27,80 +28,81 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
   };
 
   return (
-    <div className="fixed top-0 left-0 w-64 h-full bg-music-surface border-r border-border p-4 flex flex-col">
-      <div className="flex items-center mb-8">
-        <Music className="h-8 w-8 text-music" />
-        <h1 className="text-xl font-bold ml-2">Unreleased Jamz</h1>
-      </div>
-      
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search songs..."
-            className="pl-8 bg-secondary"
-            onChange={(e) => onSearch(e.target.value)}
-          />
+    <div className="fixed top-0 left-0 w-64 h-screen bg-[#121212] border-r border-[#282828] p-4">
+      <div className="flex flex-col h-full">
+        <div className="flex items-center mb-6">
+          <Music className="h-8 w-8 text-purple-500" />
+          <h1 className="text-xl font-bold ml-2 text-white">Unreleased Jamz</h1>
         </div>
-      </div>
-      
-      <nav className="space-y-1">
-        <Link to="/">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-md font-normal"
-          >
-            <Home className="mr-2 h-5 w-5" />
-            Home
-          </Button>
-        </Link>
-        <Link to="/favorites">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-md font-normal"
-          >
-            <Heart className="mr-2 h-5 w-5" />
-            Favorites
-          </Button>
-        </Link>
-        <Link to="/upload">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-md font-normal"
-          >
-            <Upload className="mr-2 h-5 w-5" />
-            Upload Music
-          </Button>
-        </Link>
 
-        {!currentUser ? (
-          <>
-            <Link to="/login">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-md font-normal"
-              >
-                <LogIn className="mr-2 h-5 w-5" />
-                Login
-              </Button>
-            </Link>
-            <Link to="/register">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-md font-normal"
-              >
-                <UserPlus className="mr-2 h-5 w-5" />
-                Register
-              </Button>
-            </Link>
-          </>
-        ) : (
-          <>
+        <div className="mb-6">
+          <SearchInput onSearch={onSearch} />
+        </div>
+        
+        <nav className="space-y-1">
+          <Link to="/">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+            >
+              <Home className="mr-2 h-5 w-5" />
+              Home
+            </Button>
+          </Link>
+          
+          {currentUser && (
+            <>
+              <Link to="/favorites">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                >
+                  <Heart className="mr-2 h-5 w-5" />
+                  Favorites
+                </Button>
+              </Link>
+              <Link to="/upload">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                >
+                  <Upload className="mr-2 h-5 w-5" />
+                  Upload Music
+                </Button>
+              </Link>
+            </>
+          )}
+
+          {!currentUser && (
+            <>
+              <Link to="/login">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                >
+                  <LogIn className="mr-2 h-5 w-5" />
+                  Login
+                </Button>
+              </Link>
+              <Link to="/register">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                >
+                  <UserPlus className="mr-2 h-5 w-5" />
+                  Register
+                </Button>
+              </Link>
+            </>
+          )}
+        </nav>
+
+        {currentUser && (
+          <div className="mt-auto pt-4 space-y-1 border-t border-[#282828]">
             <Link to="/profile">
               <Button
                 variant="ghost"
-                className="w-full justify-start text-md font-normal"
+                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
               >
                 <User className="mr-2 h-5 w-5" />
                 Profile
@@ -108,25 +110,14 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
             </Link>
             <Button
               variant="ghost"
-              className="w-full justify-start text-md font-normal"
+              className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-5 w-5" />
-              Logout
+              Sign Out
             </Button>
-          </>
+          </div>
         )}
-      </nav>
-      
-      <div className="mt-auto">
-        {currentUser && user ? (
-          <Link to="/profile">
-            <div className="p-3 bg-secondary rounded-md mb-3 hover:bg-secondary/80 transition-colors">
-              <p className="text-sm font-medium truncate">{user.username}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            </div>
-          </Link>
-        ) : null}
       </div>
     </div>
   );
