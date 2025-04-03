@@ -135,6 +135,27 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], searchTerm, onSongClick
     }
   };
 
+  const handleSongClick = (song: Song) => {
+    console.log('HomePage: Song clicked:', song);
+    try {
+      // Validate song data before navigating
+      const requiredFields = ['id', 'title', 'artist', 'uploadDate', 'updatedAt'];
+      const missingFields = requiredFields.filter(field => !song[field]);
+      
+      if (missingFields.length > 0) {
+        console.error('HomePage: Song data is incomplete:', missingFields);
+        toast.error('Unable to play song: Missing required data');
+        return;
+      }
+
+      console.log('HomePage: Song data is valid, calling onSongClick');
+      onSongClick(song);
+    } catch (error) {
+      console.error('HomePage: Error handling song click:', error);
+      toast.error('Unable to play song: An error occurred');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -167,7 +188,7 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], searchTerm, onSongClick
               song={song}
               isActive={false}
               onFavorite={handleToggleFavorite}
-              onClick={() => onSongClick(song)}
+              onClick={() => handleSongClick(song)}
             />
           ))}
         </div>

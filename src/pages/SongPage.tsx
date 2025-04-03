@@ -31,41 +31,62 @@ interface SongPageProps {
   setActiveSong: (song: Song) => void;
 }
 
+const isValidSoundCloudUrl = (url: string | null): boolean => {
+  if (!url) return false;
+  return url.startsWith('https://soundcloud.com/') || url.startsWith('https://on.soundcloud.com/');
+};
+
 const SongPage: React.FC<SongPageProps> = ({ songs, hideMiniPlayer, playerState, setActiveSong }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [song, setSong] = useState<Song | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     hideMiniPlayer();
-  }, []);
-
-  useEffect(() => {
+    
     const fetchSong = async () => {
-      if (!id) return;
+      if (!id) {
+        setError('No song ID provided');
+        return;
+      }
 
       try {
-        const songDoc = await getDoc(doc(db, 'songs', id));
+        const songRef = doc(db, 'songs', id);
+        const songDoc = await getDoc(songRef);
+        
         if (songDoc.exists()) {
-          const songData = { id: songDoc.id, ...songDoc.data() } as Song;
+          const songData = { 
+            id: songDoc.id, 
+            ...songDoc.data(),
+            favoritedBy: songDoc.data().favoritedBy || [],
+            favoritedAt: songDoc.data().favoritedAt || [],
+            favoriteCount: songDoc.data().favoriteCount || 0,
+            isFavorite: songDoc.data().isFavorite || false,
+          } as Song;
+          
+          const requiredFields = ['title', 'artist', 'uploadDate', 'updatedAt'];
+          const missingFields = requiredFields.filter(field => !songData[field]);
+          
+          if (missingFields.length > 0) {
+            setError(`Song data is incomplete. Missing: ${missingFields.join(', ')}`);
+            return;
+          }
+
           setSong(songData);
           setActiveSong(songData);
-          // Only auto-play if there's a valid SoundCloud URL
-          if (songData.soundcloudUrl && isValidSoundCloudUrl(songData.soundcloudUrl)) {
-            playerState.setIsPlaying(true);
-          }
         } else {
-          console.error('Song not found');
-          navigate('/');
+          setError('Song not found');
+          setTimeout(() => navigate('/'), 2000);
         }
       } catch (error) {
-        console.error('Error fetching song:', error);
-        navigate('/');
+        setError('Error loading song');
+        setTimeout(() => navigate('/'), 2000);
       }
     };
 
     fetchSong();
-  }, [id, navigate]);
+  }, [id, navigate, setActiveSong, hideMiniPlayer]);
 
   const handlePrevious = () => {
     if (!song || songs.length === 0) return;
@@ -100,25 +121,32 @@ const SongPage: React.FC<SongPageProps> = ({ songs, hideMiniPlayer, playerState,
     // Implementation of handleFavorite function
   };
 
-  if (!song) {
-    return <div className="px-4">Loading...</div>;
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="text-white">{error}</div>
+      </div>
+    );
   }
 
-  const isValidSoundCloudUrl = (url: string | null): boolean => {
-    if (!url) return false;
-    return url.startsWith('https://soundcloud.com/') || url.startsWith('https://on.soundcloud.com/');
-  };
+  if (!song) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="fixed inset-0 bg-black">
       {/* Header */}
       <div className="px-4 pt-4">
         <button
-          onClick={() => navigate(-1)}
-          className="flex items-center text-white mb-4"
+          onClick={() => navigate('/')}
+          className="flex items-center text-white mb-4 hover:text-gray-300 transition-colors"
         >
           <ArrowLeft className="h-6 w-6 mr-2" />
-          <span className="text-lg">Back</span>
+          <span className="text-lg">Back to Home</span>
         </button>
       </div>
 
@@ -130,21 +158,20 @@ const SongPage: React.FC<SongPageProps> = ({ songs, hideMiniPlayer, playerState,
           <p className="text-gray-400">{song.artist}</p>
         </div>
 
-        {/* Original SoundCloud embed */}
+        {/* SoundCloud embed */}
         {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) ? (
-          <div className="mb-4">
-            <iframe
-              width="100%"
-              height="180"
-              scrolling="no"
-              frameBorder="no"
-              allow="autoplay"
-              src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`}
-              className="rounded-lg"
-            />
+          <div className="mb-4 relative">
+            <div className="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden">
+              <div className="absolute inset-0 w-full h-full bg-gray-800 flex items-center justify-center">
+                <div className="text-center">
+                  <Music className="h-12 w-12 text-gray-600 mx-auto mb-2" />
+                  <p className="text-gray-400">Playing in the bottom bar</p>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="w-full h-[180px] flex items-center justify-center bg-gray-800 rounded-lg mb-4">
+          <div className="w-full aspect-w-16 aspect-h-9 flex items-center justify-center bg-gray-800 rounded-lg mb-4">
             <p className="text-gray-400">Link not available</p>
           </div>
         )}
@@ -179,19 +206,6 @@ const SongPage: React.FC<SongPageProps> = ({ songs, hideMiniPlayer, playerState,
           </span>
         </div>
       </div>
-
-      {/* Hidden SoundCloud iframe for playback */}
-      {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) && (
-        <iframe
-          ref={playerState.playerRef}
-          src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false`}
-          className="hidden"
-          width="0"
-          height="0"
-          frameBorder="no"
-          allow="autoplay"
-        />
-      )}
 
       {/* Player */}
       <NowPlayingBar

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { Toaster } from "sonner";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { Toaster, toast } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
 import HomePage from "@/pages/HomePage";
 import FavoritesPage from "@/pages/FavoritesPage";
@@ -18,6 +18,7 @@ import BottomNav from '@/components/BottomNav';
 
 const AppContent = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [songs, setSongs] = useState<Song[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSong, setActiveSong] = useState<Song | null>(null);
@@ -68,18 +69,29 @@ const AppContent = () => {
   };
 
   const handleSongClick = (song: Song) => {
-    // Always set the active song first
-    if (!activeSong || activeSong.id !== song.id) {
-      setActiveSong(song);
-      // When changing songs, we want to start playing
-      setIsPlaying(true);
-    } else {
-      // If it's the same song, toggle play/pause
-      if (isPlaying) {
-        handlePause();
+    console.log('App: handleSongClick called with song:', song);
+    try {
+      // Always set the active song first
+      if (!activeSong || activeSong.id !== song.id) {
+        console.log('App: Setting new active song');
+        setActiveSong(song);
+        // When changing songs, we want to start playing
+        setIsPlaying(true);
+        // Navigate to song page
+        console.log('App: Navigating to song page');
+        navigate(`/song/${song.id}`);
       } else {
-        handlePlay();
+        console.log('App: Same song clicked, toggling play/pause');
+        // If it's the same song, toggle play/pause
+        if (isPlaying) {
+          handlePause();
+        } else {
+          handlePlay();
+        }
       }
+    } catch (error) {
+      console.error('App: Error handling song click:', error);
+      toast.error('Unable to play song: An error occurred');
     }
   };
 

@@ -69,88 +69,159 @@ const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
       return;
     }
 
-    try {
-      // Load SoundCloud Widget API if not already loaded
-      if (!(window as any).SC) {
-        const script = document.createElement('script');
-        script.src = 'https://w.soundcloud.com/player/api.js';
-        script.async = true;
-        document.body.appendChild(script);
-        return () => {
-          document.body.removeChild(script);
-        };
-      }
+    let widget: any = null;
+    let isWidgetReady = false;
+    let retryCount = 0;
+    const maxRetries = 5;
 
-      widgetRef.current = (window as any).SC.Widget(playerRef.current);
-      
-      widgetRef.current.bind((window as any).SC.Widget.Events.PLAY, () => {
-        setIsPlaying(true);
-      });
-
-      widgetRef.current.bind((window as any).SC.Widget.Events.PAUSE, () => {
-        setIsPlaying(false);
-      });
-
-      widgetRef.current.bind((window as any).SC.Widget.Events.FINISH, () => {
-        setIsPlaying(false);
-        setCurrentPosition(0);
-        if (onNext) {
-          onNext();
-        }
-      });
-
-      widgetRef.current.bind((window as any).SC.Widget.Events.READY, () => {
-        widgetRef.current.getDuration((totalDuration: number) => {
-          setDuration(totalDuration);
-        });
-      });
-
-      // Start progress tracking when playing
-      const progressInterval = setInterval(() => {
-        if (isPlaying && widgetRef.current) {
-          widgetRef.current.getPosition((pos: number) => {
-            setCurrentPosition(pos);
-          });
-        }
-      }, 1000);
-
-      return () => {
-        clearInterval(progressInterval);
-        if (widgetRef.current) {
-          try {
-            widgetRef.current.unbind((window as any).SC.Widget.Events.PLAY);
-            widgetRef.current.unbind((window as any).SC.Widget.Events.PAUSE);
-            widgetRef.current.unbind((window as any).SC.Widget.Events.FINISH);
-            widgetRef.current.unbind((window as any).SC.Widget.Events.READY);
-          } catch (error) {
-            console.error('Error cleaning up widget:', error);
+    const initializeWidget = () => {
+      try {
+        if (!(window as any).SC) {
+          if (retryCount < maxRetries) {
+            console.log(`Waiting for SoundCloud API (attempt ${retryCount + 1}/${maxRetries})...`);
+            retryCount++;
+            setTimeout(initializeWidget, 500);
+            return;
+          } else {
+            console.error('Failed to load SoundCloud API after multiple attempts');
+            return;
           }
         }
-      };
-    } catch (error) {
-      console.error('Error initializing SoundCloud widget:', error);
-      // Reset player state on error
-      setIsPlaying(false);
-      setCurrentPosition(0);
-      setDuration(0);
-    }
-  }, [song, playerRef.current]);
 
-  const handlePlayPause = (e: React.MouseEvent) => {
+        console.log('Setting up widget...');
+        widget = (window as any).SC.Widget(playerRef.current);
+        widgetRef.current = widget;
+
+        widget.bind((window as any).SC.Widget.Events.READY, () => {
+          console.log('Widget READY event fired');
+          isWidgetReady = true;
+          widget.getDuration((totalDuration: number) => {
+            console.log('Got duration:', totalDuration);
+            setDuration(totalDuration);
+            
+            // If we have a current position, seek to it
+            if (currentPosition > 0) {
+              widget.seekTo(currentPosition);
+            }
+            
+            // If we should be playing, start playback once ready
+            if (isPlaying) {
+              console.log('Auto-playing because isPlaying is true');
+              widget.play();
+            }
+          });
+        });
+
+        widget.bind((window as any).SC.Widget.Events.PLAY, () => {
+          console.log('Widget PLAY event fired');
+          setIsPlaying(true);
+          onPlay();
+        });
+
+        widget.bind((window as any).SC.Widget.Events.PAUSE, () => {
+          console.log('Widget PAUSE event fired');
+          setIsPlaying(false);
+          onPause();
+        });
+
+        widget.bind((window as any).SC.Widget.Events.FINISH, () => {
+          console.log('Widget FINISH event fired');
+          setIsPlaying(false);
+          setCurrentPosition(0);
+          if (onNext) {
+            onNext();
+          }
+        });
+
+        // Start progress tracking when playing
+        const progressInterval = setInterval(() => {
+          if (isPlaying && widget && isWidgetReady) {
+            widget.getPosition((pos: number) => {
+              setCurrentPosition(pos);
+            });
+          }
+        }, 100);
+
+        return () => {
+          clearInterval(progressInterval);
+          if (widget) {
+            try {
+              widget.pause();
+              widget.unbind((window as any).SC.Widget.Events.PLAY);
+              widget.unbind((window as any).SC.Widget.Events.PAUSE);
+              widget.unbind((window as any).SC.Widget.Events.FINISH);
+              widget.unbind((window as any).SC.Widget.Events.READY);
+            } catch (error) {
+              console.error('Error cleaning up widget:', error);
+            }
+          }
+        };
+      } catch (error) {
+        console.error('Error setting up widget:', error);
+      }
+    };
+
+    // Load SoundCloud Widget API if not already loaded
+    if (!(window as any).SC) {
+      const script = document.createElement('script');
+      script.src = 'https://w.soundcloud.com/player/api.js';
+      script.async = true;
+      document.body.appendChild(script);
+      script.onload = () => {
+        console.log('SoundCloud API script loaded');
+        initializeWidget();
+      };
+      script.onerror = () => {
+        console.error('Failed to load SoundCloud API script');
+      };
+    } else {
+      initializeWidget();
+    }
+
+    return () => {
+      if (widgetRef.current) {
+        try {
+          widgetRef.current.pause();
+          widgetRef.current = null;
+        } catch (error) {
+          console.error('Error cleaning up widget:', error);
+        }
+      }
+    };
+  }, [song?.soundcloudUrl]);
+
+  const handlePlayPause = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!song?.soundcloudUrl || !isValidSoundCloudUrl(song.soundcloudUrl)) {
       toast.error('No playback URL available');
       return;
     }
-    if (isPlaying) {
-      onPause();
-    } else {
-      onPlay();
+    
+    const widget = widgetRef.current;
+    if (!widget) {
+      console.error('Widget not initialized');
+      toast.error('Player is initializing, please try again in a moment');
+      return;
+    }
+
+    try {
+      console.log('Play/Pause clicked, current state:', { isPlaying });
+      
+      if (isPlaying) {
+        console.log('Pausing...');
+        await new Promise((resolve) => widget.pause(resolve));
+      } else {
+        console.log('Playing...');
+        await new Promise((resolve) => widget.play(resolve));
+      }
+    } catch (error) {
+      console.error('Error controlling playback:', error);
+      toast.error('Playback control failed, please try again');
     }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!duration || !song?.soundcloudUrl || !isValidSoundCloudUrl(song.soundcloudUrl)) return;
+    if (!duration || !song?.soundcloudUrl || !isValidSoundCloudUrl(song.soundcloudUrl) || !widgetRef.current) return;
 
     const progressBar = e.currentTarget;
     const rect = progressBar.getBoundingClientRect();
@@ -158,8 +229,8 @@ const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
     const percentage = x / rect.width;
     const position = percentage * duration;
 
+    widgetRef.current.seekTo(position);
     onSeek(position);
-    setCurrentPosition(position);
   };
 
   if (!song) return null;
@@ -175,7 +246,10 @@ const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
       <div className={`flex flex-col h-full ${isFullScreen ? 'p-4' : 'px-4'}`}>
         {/* Song info */}
         <div className="flex items-center justify-between h-full">
-          <div className="flex items-center flex-1">
+          <div 
+            className="flex items-center flex-1 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => navigate(`/song/${song.id}`)}
+          >
             <div className={`flex-shrink-0 bg-gray-800 rounded-sm overflow-hidden mr-3 ${
               isFullScreen ? 'h-14 w-14' : 'h-10 w-10'
             }`}>
@@ -309,14 +383,14 @@ const NowPlayingBar: React.FC<NowPlayingBarProps> = ({
           </div>
         )}
 
-        {/* Hidden SoundCloud iframe */}
+        {/* Always render the SoundCloud iframe */}
         {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) && (
           <iframe
             ref={playerRef}
-            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false`}
+            src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=false&show_artwork=false&single_active=false&sharing=false&download=false&buying=false&show_playcount=false`}
             className="hidden"
-            width="0"
-            height="0"
+            width="100%"
+            height="100%"
             frameBorder="no"
             allow="autoplay"
           />

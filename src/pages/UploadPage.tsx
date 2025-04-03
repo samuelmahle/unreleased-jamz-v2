@@ -14,6 +14,7 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [releaseDate, setReleaseDate] = useState('');
+  const [genre, setGenre] = useState('');
   const [matches, setMatches] = useState<any[]>([]);
   const [selectedUrl, setSelectedUrl] = useState('');
   const [customUrl, setCustomUrl] = useState('');
@@ -55,9 +56,16 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
       await addDoc(collection(db, 'songs'), {
         title,
         artist,
+        genre: genre || 'Undefined',
         releaseDate: releaseDate ? new Date(releaseDate) : null,
         soundcloudUrl: finalUrl || null,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        uploadDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        favoritedBy: [],
+        favoritedAt: [],
+        favoriteCount: 0,
+        isFavorite: false
       });
       setSubmitted(true);
       toast.success('Song uploaded successfully!');
@@ -104,6 +112,29 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-music"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="genre" className="block text-sm sm:text-base font-medium text-white">
+              Genre
+            </label>
+            <select
+              id="genre"
+              value={genre}
+              onChange={(e) => setGenre(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-music"
+            >
+              <option value="">Select a genre (optional)</option>
+              <option value="Electronic">Electronic</option>
+              <option value="Hip-Hop">Hip-Hop</option>
+              <option value="Pop">Pop</option>
+              <option value="Rock">Rock</option>
+              <option value="R&B">R&B</option>
+              <option value="Jazz">Jazz</option>
+              <option value="Classical">Classical</option>
+              <option value="Ambient">Ambient</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
           <div className="space-y-2">
