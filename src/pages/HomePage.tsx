@@ -11,11 +11,12 @@ import { Label } from '@/components/ui/label';
 
 interface HomePageProps {
   songs: Song[];
-  setSongs: React.Dispatch<React.SetStateAction<Song[]>>;
   searchTerm: string;
+  onSongClick: (song: Song) => void;
+  setSongs?: React.Dispatch<React.SetStateAction<Song[]>>;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm }) => {
+const HomePage: React.FC<HomePageProps> = ({ songs = [], searchTerm, onSongClick, setSongs }) => {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const { toast: uiToast } = useToast();
@@ -159,14 +160,14 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+        <div className="sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 flex flex-col space-y-2 sm:space-y-0">
           {sortedAndFilteredSongs.map((song) => (
             <SongCard
               key={song.id}
               song={song}
-              isActive={activeSong === song.id}
-              onClick={() => setActiveSong(song.id)}
+              isActive={false}
               onFavorite={handleToggleFavorite}
+              onClick={() => onSongClick(song)}
             />
           ))}
         </div>

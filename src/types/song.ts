@@ -15,4 +15,5 @@ export interface Song {
   favoritedAt: string[];
   favoriteCount: number;
   updatedAt: string;
+  artwork_url?: string | null;
 }

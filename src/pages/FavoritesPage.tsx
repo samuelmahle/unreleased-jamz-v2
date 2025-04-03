@@ -11,9 +11,11 @@ import { Label } from '@/components/ui/label';
 interface FavoritesPageProps {
   songs: Song[];
   searchTerm: string;
+  onSongClick: (song: Song) => void;
+  setSongs?: React.Dispatch<React.SetStateAction<Song[]>>;
 }
 
-const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
+const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm, onSongClick, setSongs }) => {
   const { currentUser, userFavorites } = useAuth();
   const navigate = useNavigate();
   const [activeSong, setActiveSong] = useState<string | null>(null);
@@ -24,6 +26,38 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
       navigate('/login');
     }
   }, [currentUser, navigate]);
+
+  // Update songs to reflect user favorites
+  useEffect(() => {
+    if (songs?.length > 0 && setSongs) {
+      setSongs(prevSongs => 
+        prevSongs.map(song => {
+          const isFavorite = userFavorites.includes(song.id);
+          const favoritedBy = song.favoritedBy || [];
+          const favoritedAt = song.favoritedAt || [];
+          
+          // If the song is favorited but not in favoritedBy, add it
+          if (isFavorite && !favoritedBy.includes(currentUser?.uid)) {
+            favoritedBy.push(currentUser?.uid);
+            favoritedAt.push(new Date().toISOString());
+          }
+          // If the song is not favorited but in favoritedBy, remove it
+          if (!isFavorite && favoritedBy.includes(currentUser?.uid)) {
+            const index = favoritedBy.indexOf(currentUser?.uid);
+            favoritedBy.splice(index, 1);
+            favoritedAt.splice(index, 1);
+          }
+          
+          return {
+            ...song,
+            isFavorite,
+            favoritedBy,
+            favoritedAt
+          };
+        })
+      );
+    }
+  }, [userFavorites, setSongs, songs, currentUser?.uid]);
 
   const isReleasingThisWeek = (releaseDate: string | null) => {
     if (!releaseDate) return false;
@@ -56,9 +90,9 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
   );
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Your Favorites</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Your Favorites</h1>
         <div className="flex items-center space-x-2">
           <Switch
             checked={showReleasingThisWeek}
@@ -80,17 +114,17 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 flex flex-col space-y-2 sm:space-y-0">
           {filteredSongs.map((song) => (
             <SongCard
               key={song.id}
-              song={{
-                ...song,
-                isFavorite: userFavorites.includes(song.id)
-              }}
+              song={song}
               isActive={activeSong === song.id}
-              onClick={() => setActiveSong(song.id)}
               onFavorite={handleFavorite}
+              onClick={() => {
+                setActiveSong(song.id);
+                onSongClick(song);
+              }}
             />
           ))}
         </div>
