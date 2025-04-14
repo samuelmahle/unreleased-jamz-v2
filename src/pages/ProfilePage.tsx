@@ -7,38 +7,32 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { updatePassword } from 'firebase/auth';
 
-interface ProfileData {
-  username: string;
-  email: string;
-}
-
 const ProfilePage = () => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   useEffect(() => {
-    if (user?.profileData) {
-      setProfileData(user.profileData as ProfileData);
-      setNewUsername(user.profileData.username);
+    if (currentUser?.profileData) {
+      setNewUsername(currentUser.profileData.username);
     }
-  }, [user]);
+  }, [currentUser]);
 
   const handleUpdateProfile = async () => {
-    if (!user?.uid) return;
+    if (!currentUser?.uid) return;
     
     setLoading(true);
     try {
       // Update username in Firestore
-      if (newUsername !== profileData?.username) {
-        const userRef = doc(db, 'users', user.uid);
+      if (newUsername !== currentUser.profileData?.username) {
+        const userRef = doc(db, 'users', currentUser.uid);
         await updateDoc(userRef, {
           username: newUsername,
         });
+        toast.success('Username updated successfully');
       }
 
       // Update password if provided
@@ -51,23 +45,27 @@ const ProfilePage = () => {
           toast.error('Password must be at least 6 characters');
           return;
         }
-        await updatePassword(user.firebaseUser, newPassword);
+        await updatePassword(currentUser, newPassword);
+        toast.success('Password updated successfully');
       }
 
-      toast.success('Profile updated successfully');
       setIsEditing(false);
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      toast.error('Failed to update profile');
       console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!profileData) {
-    return <div className="flex justify-center items-center h-screen">Loading...</div>;
+  if (!currentUser?.profileData) {
+    return (
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-music"></div>
+      </div>
+    );
   }
 
   return (
@@ -76,21 +74,22 @@ const ProfilePage = () => {
         <h1 className="text-3xl font-bold">Profile Settings</h1>
         <Button
           onClick={() => setIsEditing(!isEditing)}
-          className="bg-music hover:bg-music-light text-white"
+          variant="outline"
+          className="hover:bg-gray-800"
         >
           {isEditing ? 'Cancel' : 'Edit Profile'}
         </Button>
       </div>
       
-      <div className="space-y-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 p-6 rounded-lg border">
+      <div className="space-y-6 bg-gray-900/50 backdrop-blur-sm p-6 rounded-xl border border-gray-800">
         <div className="space-y-4">
           <div>
             <label className="block text-base font-medium mb-2">Email</label>
             <Input
               type="email"
-              value={profileData.email}
+              value={currentUser.profileData.email}
               disabled
-              className="bg-background border-input"
+              className="bg-gray-800/50 border-gray-700"
             />
           </div>
 
@@ -101,35 +100,34 @@ const ProfilePage = () => {
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
               disabled={!isEditing}
-              className="bg-background border-input"
-            />
-          </div>
-
-          <div>
-            <label className="block text-base font-medium mb-2">
-              {isEditing ? "New Password" : "Password"}
-            </label>
-            <Input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder={isEditing ? "Enter new password" : "••••••••"}
-              disabled={!isEditing}
-              className="bg-background border-input"
+              className="bg-gray-800/50 border-gray-700"
             />
           </div>
 
           {isEditing && (
-            <div>
-              <label className="block text-base font-medium mb-2">Confirm Password</label>
-              <Input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                className="bg-background border-input"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-base font-medium mb-2">New Password</label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-base font-medium mb-2">Confirm Password</label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="bg-gray-800/50 border-gray-700"
+                />
+              </div>
+            </>
           )}
         </div>
 

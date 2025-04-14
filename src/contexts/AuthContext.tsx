@@ -12,8 +12,20 @@ import {
 import { app, db } from "@/lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 
+interface UserProfile {
+  username: string;
+  email: string;
+  isPublic: boolean;
+  uploadCount: number;
+  createdAt: string;
+}
+
+interface AuthUser extends User {
+  profileData?: UserProfile;
+}
+
 interface AuthContextType {
-  currentUser: User | null;
+  currentUser: AuthUser | null;
   auth: Auth;
   userFavorites: string[];
   register: (email: string, password: string) => Promise<void>;
@@ -33,21 +45,44 @@ export function useAuth() {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const auth = getAuth(app);
 
+  // Load user profile data
+  const loadUserProfile = async (user: User) => {
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data() as UserProfile;
+        const authUser: AuthUser = Object.assign(user, { profileData: userData });
+        setCurrentUser(authUser);
+      } else {
+        setCurrentUser(user);
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      setCurrentUser(user);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
+      if (user) {
+        await loadUserProfile(user);
+      } else {
+        setCurrentUser(null);
+      }
       setLoading(false);
     });
 
     return unsubscribe;
   }, [auth]);
 
-  // Listen for changes to user favorites
+  // Listen for changes to user data
   useEffect(() => {
     if (!currentUser) {
       setUserFavorites([]);
@@ -57,14 +92,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userRef = doc(db, 'users', currentUser.uid);
     const unsubscribe = onSnapshot(userRef, (doc) => {
       if (doc.exists()) {
+        const userData = doc.data() as UserProfile;
         setUserFavorites(doc.data().favorites || []);
+        // Update profile data when it changes
+        const updatedUser: AuthUser = Object.assign({}, currentUser, { 
+          profileData: userData 
+        });
+        setCurrentUser(updatedUser);
       } else {
         setUserFavorites([]);
       }
     });
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, [currentUser?.uid]); // Only re-run when user ID changes
 
   const register = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);

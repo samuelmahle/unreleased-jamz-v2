@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, getDocs } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -114,4 +114,24 @@ export const getFavorites = async (userId: string) => {
   }
   
   return [];
+};
+
+export const updateExistingSongsWithGenre = async () => {
+  try {
+    const songsRef = collection(db, 'songs');
+    const songsSnapshot = await getDocs(songsRef);
+    
+    const updatePromises = songsSnapshot.docs.map(async (songDoc) => {
+      const songData = songDoc.data();
+      return updateDoc(doc(db, 'songs', songDoc.id), {
+        genre: songData.genre || 'Electronic'  // Keep existing genre or set to Electronic
+      });
+    });
+    
+    await Promise.all(updatePromises.filter(Boolean));
+    return true;
+  } catch (error) {
+    console.error('Error updating songs with genre:', error);
+    throw error;
+  }
 };

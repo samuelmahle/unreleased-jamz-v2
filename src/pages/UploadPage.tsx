@@ -4,6 +4,22 @@ import { db } from '../lib/firebase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { searchSoundCloudTracks } from '../lib/soundcloud';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const GENRES = [
+  "Electronic",
+  "Rap",
+  "Pop",
+  "Country",
+  "Rock",
+  "Other"
+];
 
 interface UploadPageProps {
   onSongUpload?: (song: any) => void;
@@ -13,6 +29,7 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
+  const [genre, setGenre] = useState('Electronic');
   const [releaseDate, setReleaseDate] = useState('');
   const [matches, setMatches] = useState<any[]>([]);
   const [selectedUrl, setSelectedUrl] = useState('');
@@ -55,9 +72,12 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
       await addDoc(collection(db, 'songs'), {
         title,
         artist,
+        genre,
         releaseDate: releaseDate ? new Date(releaseDate) : null,
         soundcloudUrl: finalUrl || null,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        favoritedBy: [],
+        favoritedAt: [],
       });
       setSubmitted(true);
       toast.success('Song uploaded successfully!');
@@ -104,6 +124,24 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
               className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-music"
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="genre" className="block text-sm sm:text-base font-medium text-white">
+              Genre <span className="text-red-500">*</span>
+            </label>
+            <Select value={genre} onValueChange={setGenre}>
+              <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white">
+                <SelectValue placeholder="Select genre" />
+              </SelectTrigger>
+              <SelectContent>
+                {GENRES.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {g}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
