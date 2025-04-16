@@ -8,10 +8,11 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login, sendVerificationEmail } = useAuth();
+  const { login, sendVerificationEmail, resetPassword } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +47,27 @@ export default function LoginPage() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast.error("Please enter your email address first");
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await resetPassword(email);
+      toast.success("Password reset email sent!", {
+        description: "Check your inbox for instructions"
+      });
+    } catch (error: any) {
+      toast.error("Failed to send reset email", {
+        description: error.message
+      });
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
@@ -68,7 +90,17 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-white">Password</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-white">Password</Label>
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-sm text-music hover:text-music-accent"
+                disabled={isResetting}
+              >
+                {isResetting ? "Sending..." : "Forgot password?"}
+              </button>
+            </div>
             <Input
               id="password"
               type="password"

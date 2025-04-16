@@ -7,7 +7,8 @@ import {
   onAuthStateChanged,
   sendEmailVerification,
   Auth,
-  getAuth
+  getAuth,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { app, db } from "@/lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -32,6 +33,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   sendVerificationEmail: (user: User) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -124,6 +126,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendEmailVerification(user);
   };
 
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
+  };
+
   const value = {
     currentUser,
     auth,
@@ -132,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     sendVerificationEmail,
+    resetPassword,
   };
 
   return (
