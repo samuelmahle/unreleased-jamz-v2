@@ -69,7 +69,7 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
     }
 
     try {
-      await addDoc(collection(db, 'songs'), {
+      const songRef = await addDoc(collection(db, 'songs'), {
         title,
         artist,
         genre,
@@ -79,9 +79,33 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
         favoritedBy: [],
         favoritedAt: [],
       });
+
+      // Create the new song object with all necessary fields
+      const newSong = {
+        id: songRef.id,
+        title,
+        artist,
+        genre,
+        releaseDate: releaseDate || null,
+        soundcloudUrl: finalUrl || null,
+        createdAt: new Date().toISOString(),
+        favoritedBy: [],
+        favoritedAt: [],
+        isFavorite: false,
+      };
+
+      // Call the onSongUpload callback with the new song
+      if (onSongUpload) {
+        onSongUpload(newSong);
+      }
+
       setSubmitted(true);
       toast.success('Song uploaded successfully!');
-      setTimeout(() => navigate('/'), 1500);
+      
+      // Navigate to home page after a short delay
+      setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 1000);
     } catch (error) {
       console.error('Error uploading song:', error);
       toast.error('Failed to upload song');

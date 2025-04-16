@@ -36,7 +36,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#121212] border-b border-[#282828] px-4 flex items-center justify-between z-50">
         <div className="flex items-center">
           <Music className="h-6 w-6 text-purple-500" />
-          <h1 className="text-lg font-bold ml-2 text-white">Unreleased Jamz</h1>
+          <h1 className="text-lg font-bold ml-2 text-white">Setlisted</h1>
         </div>
         <button
           onClick={() => setShowSearch(!showSearch)}
@@ -114,7 +114,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
         <div className="flex flex-col h-full w-full">
           <div className="flex items-center mb-6">
             <Music className="h-8 w-8 text-purple-500" />
-            <h1 className="text-xl font-bold ml-2 text-white">Unreleased Jamz</h1>
+            <h1 className="text-xl font-bold ml-2 text-white">Setlisted</h1>
           </div>
 
           <div className="mb-6">

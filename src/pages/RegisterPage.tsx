@@ -65,7 +65,7 @@ export default function RegisterPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-white">Create an Account</h1>
           <p className="mt-2 text-sm text-gray-400">
-            Join Unreleased Jamz to start collecting your favorite tracks
+            Join Setlisted to start collecting your favorite tracks
           </p>
         </div>
 

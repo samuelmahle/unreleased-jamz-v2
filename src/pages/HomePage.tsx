@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Timestamp } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 
 const GENRES = [
   "All",
@@ -42,6 +43,7 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const [showReleasingThisWeek, setShowReleasingThisWeek] = useState(false);
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [isUpdatingGenres, setIsUpdatingGenres] = useState(false);
+  const navigate = useNavigate();
 
   const parseDate = (date: any): Date | null => {
     if (!date) return null;
@@ -186,6 +188,11 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     }
   }, [userFavorites, setSongs, songs, currentUser?.uid]);
 
+  // Add useEffect to handle songs updates
+  useEffect(() => {
+    console.log('Songs updated:', songs);
+  }, [songs]);
+
   const playSong = (song: Song) => {
     setCurrentSong(song);
     setIsPlaying(true);
@@ -215,26 +222,39 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
 
   const handleToggleFavorite = async (songId: string) => {
     if (!currentUser) {
-      toast.error("Please login to favorite songs");
+      toast.error('Please login to favorite songs', {
+        description: 'Create an account to start building your collection',
+        action: {
+          label: 'Login',
+          onClick: () => navigate('/login')
+        },
+      });
       return;
     }
-    
+
     const song = songs.find((s) => s.id === songId);
     if (!song) return;
-    
-    const newFavoriteStatus = !song.isFavorite;
-    
+
     try {
-      // Update Firebase
+      const newFavoriteStatus = !song.isFavorite;
       await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
       
+      // Update the songs list immediately
+      setSongs(prevSongs => 
+        prevSongs.map(s => 
+          s.id === songId 
+            ? { ...s, isFavorite: newFavoriteStatus }
+            : s
+        )
+      );
+
       toast.success(
         newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
         { description: `"${song.title}" by ${song.artist}` }
       );
     } catch (error) {
-      console.error("Error toggling favorite:", error);
-      toast.error("Failed to update favorite status");
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorite status');
     }
   };
 
