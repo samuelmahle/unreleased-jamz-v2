@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, getDocs } from 'firebase/firestore';
+import { UserProfile } from '@/types/user';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -53,56 +54,40 @@ export const logoutUser = async () => {
 };
 
 // User favorites functions
-export const toggleFavorite = async (userId: string, songId: string, isFavoriting: boolean) => {
-  try {
-    const songRef = doc(db, 'songs', songId);
-    const userRef = doc(db, 'users', userId);
-    const songDoc = await getDoc(songRef);
-    const userDoc = await getDoc(userRef);
-
-    if (!songDoc.exists()) {
-      throw new Error('Song not found');
-    }
-
-    const currentFavoritedBy = songDoc.data().favoritedBy || [];
-    const currentFavoritedAt = songDoc.data().favoritedAt || [];
-    const timestamp = new Date().toISOString();
-
-    // Update song document
-    if (isFavoriting) {
-      await updateDoc(songRef, {
-        favoritedBy: arrayUnion(userId),
-        favoritedAt: [...currentFavoritedAt, timestamp]
-      });
-    } else {
-      // Find the index of the user's favorite to remove the corresponding timestamp
-      const userFavoriteIndex = currentFavoritedBy.indexOf(userId);
-      const updatedFavoritedAt = currentFavoritedAt.filter((_, index) => index !== userFavoriteIndex);
-      
-      await updateDoc(songRef, {
+export const toggleFavorite = async (userId: string, songId: string) => {
+  const userRef = doc(db, 'users', userId);
+  const songRef = doc(db, 'songs', songId);
+  
+  // Get current favorite status
+  const isFavorited = (await getDoc(songRef)).data()?.favoritedBy?.includes(userId) ?? false;
+  
+  if (isFavorited) {
+    // Remove from favorites
+    await Promise.all([
+      updateDoc(userRef, {
+        favorites: arrayRemove(songId)
+      }),
+      updateDoc(songRef, {
         favoritedBy: arrayRemove(userId),
-        favoritedAt: updatedFavoritedAt
-      });
-    }
-
-    // Update user's favorites array
-    if (userDoc.exists()) {
-      if (isFavoriting) {
-        await updateDoc(userRef, {
-          favorites: arrayUnion(songId)
-        });
-      } else {
-        await updateDoc(userRef, {
-          favorites: arrayRemove(songId)
-        });
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error toggling favorite:', error);
-    throw error;
+        favoritedAt: arrayRemove(new Date().toISOString()),
+        favoriteCount: increment(-1)
+      })
+    ]);
+  } else {
+    // Add to favorites
+    await Promise.all([
+      updateDoc(userRef, {
+        favorites: arrayUnion(songId)
+      }),
+      updateDoc(songRef, {
+        favoritedBy: arrayUnion(userId),
+        favoritedAt: arrayUnion(new Date().toISOString()),
+        favoriteCount: increment(1)
+      })
+    ]);
   }
+  
+  return !isFavorited;
 };
 
 export const getFavorites = async (userId: string) => {
@@ -132,6 +117,28 @@ export const updateExistingSongsWithGenre = async () => {
     return true;
   } catch (error) {
     console.error('Error updating songs with genre:', error);
+    throw error;
+  }
+};
+
+export const searchArtists = async (searchTerm: string): Promise<(UserProfile & { id: string })[]> => {
+  try {
+    const usersRef = collection(db, 'users');
+    const snapshot = await getDocs(usersRef);
+    
+    return snapshot.docs
+      .map(doc => ({
+        id: doc.id,
+        ...(doc.data() as UserProfile)
+      }))
+      .filter(user => 
+        user.isPublic && (
+          user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (user.bio && user.bio.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+      );
+  } catch (error) {
+    console.error('Error searching artists:', error);
     throw error;
   }
 };

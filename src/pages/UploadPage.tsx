@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, where, setDoc, doc, increment, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { searchSoundCloudTracks } from '../lib/soundcloud';
+import { Plus, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Select,
   SelectContent,
@@ -27,8 +29,9 @@ interface UploadPageProps {
 
 export default function UploadPage({ onSongUpload }: UploadPageProps) {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [title, setTitle] = useState('');
-  const [artist, setArtist] = useState('');
+  const [artists, setArtists] = useState(['']); // Initialize with one empty artist input
   const [genre, setGenre] = useState('Electronic');
   const [releaseDate, setReleaseDate] = useState('');
   const [matches, setMatches] = useState<any[]>([]);
@@ -37,17 +40,36 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const handleArtistChange = (index: number, value: string) => {
+    const newArtists = [...artists];
+    newArtists[index] = value;
+    setArtists(newArtists);
+  };
+
+  const addArtist = () => {
+    setArtists([...artists, '']);
+  };
+
+  const removeArtist = (index: number) => {
+    if (artists.length > 1) {
+      const newArtists = artists.filter((_, i) => i !== index);
+      setArtists(newArtists);
+    }
+  };
+
   const handleSearch = async () => {
-    if (!title || !artist) {
-      toast.error('Please enter both title and artist name');
+    if (!title || !artists[0]) {
+      toast.error('Please enter both title and artist name(s)');
       return;
     }
 
+    // Use the first artist for SoundCloud search
+    const primaryArtist = artists[0].trim();
     setLoadingMatches(true);
     setMatches([]);
     
     try {
-      const results = await searchSoundCloudTracks(artist, title);
+      const results = await searchSoundCloudTracks(primaryArtist, title);
       setMatches(results);
       if (results.length === 0) {
         toast.error('No matching tracks found on SoundCloud');
@@ -60,31 +82,120 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
     }
   };
 
+  const createArtistProfile = async (artistName: string) => {
+    try {
+      // Check if artist already exists
+      const artistsQuery = query(
+        collection(db, 'users'),
+        where('username', '==', artistName),
+        where('isArtist', '==', true)
+      );
+      const existingArtists = await getDocs(artistsQuery);
+      
+      if (!existingArtists.empty) {
+        // Return existing artist's ID
+        return existingArtists.docs[0].id;
+      }
+
+      // Create new artist profile
+      const artistId = doc(collection(db, 'users')).id; // Generate new ID
+      await setDoc(doc(db, 'users', artistId), {
+        username: artistName,
+        email: `${artistName.toLowerCase().replace(/\s+/g, '.')}@placeholder.com`,
+        isPublic: true,
+        uploadCount: 0,
+        createdAt: new Date().toISOString(),
+        isArtist: true,
+        isVerified: false,
+        bio: `Music by ${artistName}`,
+        followers: [],
+        following: []
+      });
+
+      return artistId;
+    } catch (error) {
+      console.error('Error creating artist profile:', error);
+      throw error;
+    }
+  };
+
+  const checkForDuplicates = async (title: string, artists: string[]) => {
+    try {
+      // Get all songs with the same title
+      const songsQuery = query(
+        collection(db, 'songs'),
+        where('title', '==', title)
+      );
+      const existingSongs = await getDocs(songsQuery);
+      
+      // Check if any of these songs have at least one matching artist
+      for (const doc of existingSongs.docs) {
+        const songData = doc.data();
+        const songArtists = songData.artists || [songData.artist];
+        
+        // Check if any artist matches
+        const hasMatchingArtist = artists.some(artist => 
+          songArtists.some(existingArtist => 
+            existingArtist.toLowerCase().trim() === artist.toLowerCase().trim()
+          )
+        );
+
+        if (hasMatchingArtist) {
+          return true; // Found a duplicate
+        }
+      }
+      
+      return false; // No duplicates found
+    } catch (error) {
+      console.error('Error checking for duplicates:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const finalUrl = customUrl || selectedUrl;
-    if (!title || !artist) {
-      toast.error('Please fill in required fields (title and artist)');
+    
+    // Filter out empty artists and trim whitespace
+    const validArtists = artists.map(a => a.trim()).filter(a => a !== '');
+    
+    if (!title || validArtists.length === 0) {
+      toast.error('Please fill in required fields (title and at least one artist)');
       return;
     }
 
     try {
+      // Check for duplicates before proceeding
+      const isDuplicate = await checkForDuplicates(title, validArtists);
+      if (isDuplicate) {
+        toast.error('A song with this title and artist already exists');
+        return;
+      }
+
+      // Create or get artist profiles and collect their IDs
+      const artistIds = await Promise.all(validArtists.map(createArtistProfile));
+
       const songRef = await addDoc(collection(db, 'songs'), {
         title,
-        artist,
+        artist: validArtists[0], // Keep primary artist for backward compatibility
+        artists: validArtists, // Add all artists
+        artistIds, // Add all artist IDs
         genre,
         releaseDate: releaseDate ? new Date(releaseDate) : null,
         soundcloudUrl: finalUrl || null,
         createdAt: serverTimestamp(),
         favoritedBy: [],
         favoritedAt: [],
+        userId: artistIds[0], // Primary artist's ID
       });
 
       // Create the new song object with all necessary fields
       const newSong = {
         id: songRef.id,
         title,
-        artist,
+        artist: validArtists[0],
+        artists: validArtists,
+        artistIds,
         genre,
         releaseDate: releaseDate || null,
         soundcloudUrl: finalUrl || null,
@@ -92,9 +203,17 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
         favoritedBy: [],
         favoritedAt: [],
         isFavorite: false,
+        userId: artistIds[0], // Primary artist's ID
       };
 
-      // Call the onSongUpload callback with the new song
+      // Increment upload count for all artists
+      await Promise.all(artistIds.map(async (artistId) => {
+        const artistRef = doc(db, 'users', artistId);
+        await updateDoc(artistRef, {
+          uploadCount: increment(1)
+        });
+      }));
+
       if (onSongUpload) {
         onSongUpload(newSong);
       }
@@ -102,7 +221,6 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
       setSubmitted(true);
       toast.success('Song uploaded successfully!');
       
-      // Navigate to home page after a short delay
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 1000);
@@ -137,17 +255,40 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="artist" className="block text-sm sm:text-base font-medium text-white">
-              Artist <span className="text-red-500">*</span>
+            <label className="block text-sm sm:text-base font-medium text-white">
+              Artists <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              id="artist"
-              value={artist}
-              onChange={(e) => setArtist(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-music"
-              required
-            />
+            <div className="space-y-3">
+              {artists.map((artist, index) => (
+                <div key={index} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={artist}
+                    onChange={(e) => handleArtistChange(index, e.target.value)}
+                    placeholder={index === 0 ? "Primary Artist" : `Additional Artist ${index}`}
+                    className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-music"
+                    required={index === 0}
+                  />
+                  {index > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeArtist(index)}
+                      className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addArtist}
+                className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Add Additional Artist
+              </button>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -197,7 +338,7 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
               <button
                 type="button"
                 onClick={handleSearch}
-                disabled={loadingMatches || (!title && !artist)}
+                disabled={loadingMatches || (!title && !artists[0])}
                 className="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base whitespace-nowrap"
               >
                 Check SoundCloud Matches

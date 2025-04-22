@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { Timestamp } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import { getRecommendedSongs } from '@/lib/recommendations';
+import { Music } from 'lucide-react';
 
 const GENRES = [
   "All",
@@ -44,6 +46,8 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [isUpdatingGenres, setIsUpdatingGenres] = useState(false);
   const navigate = useNavigate();
+  const [recommendedSongs, setRecommendedSongs] = useState<Song[]>([]);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
   const parseDate = (date: any): Date | null => {
     if (!date) return null;
@@ -231,10 +235,10 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
       });
       return;
     }
-
+    
     const song = songs.find((s) => s.id === songId);
     if (!song) return;
-
+    
     try {
       const newFavoriteStatus = !song.isFavorite;
       await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
@@ -247,7 +251,7 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
             : s
         )
       );
-
+      
       toast.success(
         newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
         { description: `"${song.title}" by ${song.artist}` }
@@ -258,68 +262,104 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     }
   };
 
+  useEffect(() => {
+    const loadRecommendations = async () => {
+      if (!currentUser?.profileData) {
+        console.log('Cannot load recommendations: No user profile data');
+        console.log('Current user state:', currentUser ? 'Logged in but no profile' : 'Not logged in');
+        return;
+      }
+
+      setIsLoadingRecommendations(true);
+      try {
+        console.log('Starting to load recommendations');
+        console.log('User state:', {
+          id: currentUser.uid,
+          following: currentUser.profileData.following?.length || 0,
+          favorites: currentUser.profileData.favorites?.length || 0
+        });
+
+        const recommendations = await getRecommendedSongs({
+          userId: currentUser.uid,
+          userProfile: currentUser.profileData
+        });
+
+        console.log('Setting recommendations state:', recommendations.length, 'songs');
+        setRecommendedSongs(recommendations);
+      } catch (error) {
+        console.error('Error loading recommendations:', error);
+      } finally {
+        setIsLoadingRecommendations(false);
+      }
+    };
+
+    if (currentUser) {
+      console.log('User logged in, attempting to load recommendations');
+      loadRecommendations();
+    } else {
+      console.log('No user logged in, skipping recommendations');
+      setRecommendedSongs([]);
+    }
+  }, [currentUser]);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold">Trending This Week</h1>
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {isUpdatingGenres ? (
-            <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-music"></div>
-              <span className="text-sm text-gray-400">Updating genres...</span>
-            </div>
-          ) : (
-            <>
-              <Select value={selectedGenre} onValueChange={setSelectedGenre}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select genre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {GENRES.map((genre) => (
-                    <SelectItem key={genre} value={genre}>
-                      {genre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  checked={showReleasingThisWeek}
-                  onCheckedChange={setShowReleasingThisWeek}
-                  id="release-week"
-                />
-                <Label htmlFor="release-week">Releasing This Week</Label>
-              </div>
-            </>
-          )}
-        </div>
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {currentUser && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Music className="h-5 w-5 text-music" />
+            <h2 className="text-xl font-semibold">Recommended for You</h2>
       </div>
       
-      {sortedAndFilteredSongs.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-xl text-muted-foreground">
-            {searchTerm 
-              ? 'No songs match your search'
-              : showReleasingThisWeek
-                ? 'No songs releasing this week'
-                : selectedGenre !== "All"
-                  ? `No ${selectedGenre} songs available`
-                  : 'No songs available'}
-          </p>
+          {isLoadingRecommendations ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-music"></div>
+            </div>
+          ) : recommendedSongs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recommendedSongs.map((song) => (
+                <SongCard
+                  key={song.id}
+                  song={song}
+                  onFavorite={handleToggleFavorite}
+                  isActive={false}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center py-12 text-gray-400">
+              Start following artists and liking songs to get personalized recommendations!
+            </p>
+          )}
+        </section>
+      )}
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Music className="h-5 w-5 text-music" />
+          <h2 className="text-xl font-semibold">
+            {searchTerm ? 'Search Results' : 'Trending This Week'}
+          </h2>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+
+        {sortedAndFilteredSongs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sortedAndFilteredSongs.map((song) => (
             <SongCard
               key={song.id}
               song={song}
+                onFavorite={handleToggleFavorite}
               isActive={activeSong === song.id}
               onClick={() => setActiveSong(song.id)}
-              onFavorite={handleToggleFavorite}
             />
           ))}
         </div>
+        ) : (
+          <p className="text-center py-12 text-gray-400">
+            {searchTerm ? 'No songs found matching your search.' : 'No songs available.'}
+          </p>
       )}
+      </section>
       
       {currentSong && (
         <MusicPlayer
