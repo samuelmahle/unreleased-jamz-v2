@@ -2,7 +2,7 @@ import React from "react";
 import { useAuth } from '../contexts/AuthContext';
 import { format } from "date-fns";
 import { Heart, Share2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import {
   Tooltip,
   TooltipContent,
@@ -15,7 +15,12 @@ import { Timestamp } from "firebase/firestore"; // 👈 Added this import
 
 const isValidSoundCloudUrl = (url: string | null): boolean => {
   if (!url) return false;
-  return url.startsWith('https://soundcloud.com/') || url.startsWith('https://on.soundcloud.com/');
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname === 'soundcloud.com' || urlObj.hostname === 'on.soundcloud.com';
+  } catch {
+    return false;
+  }
 };
 
 // ✅ New utility to handle both Timestamp and string
@@ -78,6 +83,11 @@ const SongCard: React.FC<SongCardProps> = ({
     navigate(`/song/${song.id}`);
   };
 
+  const handleArtistClick = (e: React.MouseEvent, userId: string) => {
+    e.stopPropagation();
+    navigate(`/artist/${userId}`);
+  };
+
   const handleFavorite = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!currentUser) {
@@ -126,80 +136,117 @@ const SongCard: React.FC<SongCardProps> = ({
             {song.title}
           </h3>
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm text-gray-400 truncate flex-1">{song.artist}</p>
-            <span className="text-xs px-2 py-1 rounded-full bg-gray-800/80 text-gray-300 font-medium">
+            <div className="flex-1 min-w-0">
+              {song.artists ? (
+                <div className="flex flex-wrap gap-x-1 text-sm">
+                  {song.artists.map((artist, index) => (
+                    <React.Fragment key={index}>
+                      <button
+                        onClick={(e) => handleArtistClick(e, song.artistIds?.[index] || song.userId)}
+                        className="text-gray-400 hover:text-white truncate"
+                      >
+                        {artist}
+                      </button>
+                      {index < song.artists.length - 1 && (
+                        <span className="text-gray-600">,</span>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => handleArtistClick(e, song.userId)}
+                  className="text-sm text-gray-400 hover:text-white truncate"
+                >
+                  {song.artist}
+                </button>
+              )}
+            </div>
+            <span className="text-xs px-2 py-1 rounded-full bg-gray-800/80 text-gray-300 font-medium flex-shrink-0">
               {song.genre || 'Electronic'}
             </span>
           </div>
-        </div>
+      </div>
 
         {/* SoundCloud Player Section */}
         <div className="aspect-[16/10] mb-3 rounded-lg overflow-hidden bg-gray-800/50">
-          {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) ? (
-            <iframe
-              width="100%"
-              height="100%"
-              scrolling="no"
-              frameBorder="no"
-              allow="autoplay"
-              src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=${isActive ? 'true' : 'false'}&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`}
-              className="rounded-lg"
-            />
-          ) : (
+        {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) ? (
+            <div className="w-full h-full">
+          <iframe
+            width="100%"
+            height="100%"
+            scrolling="no"
+            frameBorder="no"
+            allow="autoplay"
+                src={`https://w.soundcloud.com/player/?url=${encodeURIComponent(song.soundcloudUrl)}&color=%23ff5500&auto_play=false&hide_related=true&show_comments=false&show_user=true&show_reposts=false&show_teaser=false&visual=true`}
+                className="rounded-lg"
+                onError={(e) => {
+                  // Hide the iframe if it fails to load
+                  const target = e.target as HTMLIFrameElement;
+                  target.style.display = 'none';
+                  // Show the fallback message
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = '<p class="text-gray-500 text-sm flex items-center justify-center h-full">Preview not available</p>';
+                  }
+                }}
+          />
+            </div>
+        ) : (
             <div className="w-full h-full flex items-center justify-center">
               <p className="text-gray-500 text-sm">Preview not available</p>
-            </div>
-          )}
-        </div>
-
+          </div>
+        )}
+      </div>
+      
         {/* Bottom Actions Section */}
         <div className="flex items-center justify-between mt-auto">
           <div className="flex items-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
                     className="group/btn flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-gray-800 transition-colors"
-                    onClick={handleFavorite}
-                  >
-                    <Heart
+                  onClick={handleFavorite}
+                >
+                  <Heart
                       className={`h-4 w-4 ${
                         song.isFavorite 
                           ? "fill-music-accent text-music-accent" 
                           : "text-gray-400 group-hover/btn:text-white"
-                      }`}
-                    />
+                    }`}
+                  />
                     <span className="text-xs text-gray-400 group-hover/btn:text-white">
-                      {formatFavoriteCount(song.favoritedBy?.length || 0)}
-                    </span>
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{song.isFavorite ? "Remove from favorites" : "Add to favorites"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                    {formatFavoriteCount(song.favoritedBy?.length || 0)}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{song.isFavorite ? "Remove from favorites" : "Add to favorites"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button 
                     className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-                    onClick={handleShare}
-                  >
+                  onClick={handleShare}
+                >
                     <Share2 className="h-4 w-4 text-gray-400 hover:text-white" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Copy share link</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Copy share link</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
           <span className="text-xs text-gray-500">
-            {getFormattedDate(song.releaseDate)}
-          </span>
+          {getFormattedDate(song.releaseDate)}
+        </span>
         </div>
       </div>
     </div>

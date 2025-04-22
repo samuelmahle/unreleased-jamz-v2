@@ -19,6 +19,17 @@ interface UserProfile {
   isPublic: boolean;
   uploadCount: number;
   createdAt: string;
+  isArtist: boolean;
+  isVerified: boolean;
+  bio?: string;
+  socialLinks?: {
+    instagram?: string;
+    twitter?: string;
+    soundcloud?: string;
+    website?: string;
+  };
+  followers: string[];
+  following: string[];
 }
 
 interface AuthUser extends User {
@@ -54,15 +65,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Load user profile data
   const loadUserProfile = async (user: User) => {
+    console.log('Loading user profile for:', user.uid);
     try {
       const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
       
       if (userDoc.exists()) {
         const userData = userDoc.data() as UserProfile;
+        console.log('User profile loaded:', {
+          following: userData.following?.length || 0,
+          followers: userData.followers?.length || 0,
+          favorites: userData.favorites?.length || 0
+        });
         const authUser: AuthUser = Object.assign(user, { profileData: userData });
         setCurrentUser(authUser);
       } else {
+        console.log('No user profile document exists');
         setCurrentUser(user);
       }
     } catch (error) {
@@ -73,6 +91,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('Auth state changed:', user ? 'User logged in' : 'No user');
       if (user) {
         await loadUserProfile(user);
       } else {
@@ -87,14 +106,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Listen for changes to user data
   useEffect(() => {
     if (!currentUser) {
+      console.log('No current user, clearing favorites');
       setUserFavorites([]);
       return;
     }
 
+    console.log('Setting up user data listener for:', currentUser.uid);
     const userRef = doc(db, 'users', currentUser.uid);
     const unsubscribe = onSnapshot(userRef, (doc) => {
       if (doc.exists()) {
         const userData = doc.data() as UserProfile;
+        console.log('User data updated:', {
+          favorites: userData.favorites?.length || 0,
+          following: userData.following?.length || 0
+        });
         setUserFavorites(doc.data().favorites || []);
         // Update profile data when it changes
         const updatedUser: AuthUser = Object.assign({}, currentUser, { 
@@ -102,12 +127,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         setCurrentUser(updatedUser);
       } else {
+        console.log('No user document exists');
         setUserFavorites([]);
       }
     });
 
     return () => unsubscribe();
-  }, [currentUser?.uid]); // Only re-run when user ID changes
+  }, [currentUser?.uid]);
 
   const register = async (email: string, password: string) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);

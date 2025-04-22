@@ -2,6 +2,8 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
+  artists: string[];
+  artistIds: string[];
   genre: string;
   releaseDate: string | null;
   audioUrl?: string;
@@ -15,4 +17,5 @@ export interface Song {
   favoritedAt: string[];
   favoriteCount: number;
   updatedAt: string;
+  userId: string;
 }

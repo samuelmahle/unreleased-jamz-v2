@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive } from "lucide-react";
+import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { logoutUser } from "@/lib/firebase";
@@ -58,6 +58,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
             <Home className={`h-6 w-6 ${isActive('/') ? 'text-purple-500' : 'text-gray-400'}`} />
           </div>
           <span className={`text-xs mt-0.5 ${isActive('/') ? 'text-purple-500' : 'text-gray-400'}`}>Home</span>
+        </Link>
+
+        <Link to="/artists" className="flex flex-col items-center">
+          <div className={`p-2 rounded-lg ${isActive('/artists') ? 'bg-[#282828]' : ''}`}>
+            <Users className={`h-6 w-6 ${isActive('/artists') ? 'text-purple-500' : 'text-gray-400'}`} />
+          </div>
+          <span className={`text-xs mt-0.5 ${isActive('/artists') ? 'text-purple-500' : 'text-gray-400'}`}>Artists</span>
         </Link>
 
         <Link to="/archived" className="flex flex-col items-center">
@@ -132,6 +139,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
               </Button>
             </Link>
 
+            <Link to="/artists">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+              >
+                <Users className="mr-2 h-5 w-5" />
+                Artists
+              </Button>
+            </Link>
+
             <Link to="/archived">
               <Button
                 variant="ghost"
@@ -164,6 +181,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                 </Link>
               </>
             )}
+
+            <Link to="/about">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+              >
+                <Info className="mr-2 h-5 w-5" />
+                About
+              </Button>
+            </Link>
 
             {!currentUser && (
               <>

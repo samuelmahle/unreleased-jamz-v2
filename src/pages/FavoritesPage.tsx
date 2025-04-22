@@ -51,7 +51,8 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
   const filteredSongs = songs.filter(song => 
     userFavorites.includes(song.id) &&
     (song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     song.artist.toLowerCase().includes(searchTerm.toLowerCase())) &&
+     song.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
+     song.genre.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!showReleasingThisWeek || isReleasingThisWeek(song.releaseDate))
   );
 
