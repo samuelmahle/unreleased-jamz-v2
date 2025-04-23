@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/select";
 import { Timestamp } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { getRecommendedSongs } from '@/lib/recommendations';
 import { Music } from 'lucide-react';
 
 const GENRES = [
@@ -46,8 +45,6 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const [selectedGenre, setSelectedGenre] = useState("All");
   const [isUpdatingGenres, setIsUpdatingGenres] = useState(false);
   const navigate = useNavigate();
-  const [recommendedSongs, setRecommendedSongs] = useState<Song[]>([]);
-  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
 
   const parseDate = (date: any): Date | null => {
     if (!date) return null;
@@ -147,10 +144,6 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
       
       const matchesRelease = !showReleasingThisWeek || isReleasingThisWeek(song.releaseDate);
       
-      // Add logging to debug genre matching
-      console.log('Song:', song.title, 'Genre:', song.genre, 'Selected:', selectedGenre, 
-                  'Matches:', selectedGenre === "All" || song.genre === selectedGenre);
-      
       const matchesGenre = selectedGenre === "All" || song.genre === selectedGenre;
       
       // Don't show archived songs
@@ -192,10 +185,43 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     }
   }, [userFavorites, setSongs, songs, currentUser?.uid]);
 
-  // Add useEffect to handle songs updates
-  useEffect(() => {
-    console.log('Songs updated:', songs);
-  }, [songs]);
+  const handleToggleFavorite = async (songId: string) => {
+    if (!currentUser) {
+      toast.error('Please login to favorite songs', {
+        description: 'Create an account to start building your collection',
+        action: {
+          label: 'Login',
+          onClick: () => navigate('/login')
+        },
+      });
+      return;
+    }
+
+    const song = songs.find((s) => s.id === songId);
+    if (!song) return;
+
+    try {
+      const newFavoriteStatus = !song.isFavorite;
+      await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
+      
+      // Update the songs list immediately
+      setSongs(prevSongs => 
+        prevSongs.map(s => 
+          s.id === songId 
+            ? { ...s, isFavorite: newFavoriteStatus }
+            : s
+        )
+      );
+
+      toast.success(
+        newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
+        { description: `"${song.title}" by ${song.artist}` }
+      );
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorite status');
+    }
+  };
 
   const playSong = (song: Song) => {
     setCurrentSong(song);
@@ -224,116 +250,8 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     setIsPlaying(true);
   };
 
-  const handleToggleFavorite = async (songId: string) => {
-    if (!currentUser) {
-      toast.error('Please login to favorite songs', {
-        description: 'Create an account to start building your collection',
-        action: {
-          label: 'Login',
-          onClick: () => navigate('/login')
-        },
-      });
-      return;
-    }
-    
-    const song = songs.find((s) => s.id === songId);
-    if (!song) return;
-    
-    try {
-      const newFavoriteStatus = !song.isFavorite;
-      await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
-      
-      // Update the songs list immediately
-      setSongs(prevSongs => 
-        prevSongs.map(s => 
-          s.id === songId 
-            ? { ...s, isFavorite: newFavoriteStatus }
-            : s
-        )
-      );
-      
-      toast.success(
-        newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
-        { description: `"${song.title}" by ${song.artist}` }
-      );
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Failed to update favorite status');
-    }
-  };
-
-  useEffect(() => {
-    const loadRecommendations = async () => {
-      if (!currentUser?.profileData) {
-        console.log('Cannot load recommendations: No user profile data');
-        console.log('Current user state:', currentUser ? 'Logged in but no profile' : 'Not logged in');
-        return;
-      }
-
-      setIsLoadingRecommendations(true);
-      try {
-        console.log('Starting to load recommendations');
-        console.log('User state:', {
-          id: currentUser.uid,
-          following: currentUser.profileData.following?.length || 0,
-          favorites: currentUser.profileData.favorites?.length || 0
-        });
-
-        const recommendations = await getRecommendedSongs({
-          userId: currentUser.uid,
-          userProfile: currentUser.profileData
-        });
-
-        console.log('Setting recommendations state:', recommendations.length, 'songs');
-        setRecommendedSongs(recommendations);
-      } catch (error) {
-        console.error('Error loading recommendations:', error);
-      } finally {
-        setIsLoadingRecommendations(false);
-      }
-    };
-
-    if (currentUser) {
-      console.log('User logged in, attempting to load recommendations');
-      loadRecommendations();
-    } else {
-      console.log('No user logged in, skipping recommendations');
-      setRecommendedSongs([]);
-    }
-  }, [currentUser]);
-
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {currentUser && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Music className="h-5 w-5 text-music" />
-            <h2 className="text-xl font-semibold">Recommended for You</h2>
-      </div>
-      
-          {isLoadingRecommendations ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-music"></div>
-            </div>
-          ) : recommendedSongs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recommendedSongs.map((song) => (
-                <SongCard
-                  key={song.id}
-                  song={song}
-                  onFavorite={handleToggleFavorite}
-                  isActive={false}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center py-12 text-gray-400">
-              Start following artists and liking songs to get personalized recommendations!
-            </p>
-          )}
-        </section>
-      )}
-
       <section className="space-y-4">
         <div className="flex items-center gap-2">
           <Music className="h-5 w-5 text-music" />
@@ -344,21 +262,21 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
 
         {sortedAndFilteredSongs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedAndFilteredSongs.map((song) => (
-            <SongCard
-              key={song.id}
-              song={song}
+            {sortedAndFilteredSongs.map((song) => (
+              <SongCard
+                key={song.id}
+                song={song}
                 onFavorite={handleToggleFavorite}
-              isActive={activeSong === song.id}
-              onClick={() => setActiveSong(song.id)}
-            />
-          ))}
-        </div>
+                isActive={activeSong === song.id}
+                onClick={() => setActiveSong(song.id)}
+              />
+            ))}
+          </div>
         ) : (
           <p className="text-center py-12 text-gray-400">
             {searchTerm ? 'No songs found matching your search.' : 'No songs available.'}
           </p>
-      )}
+        )}
       </section>
       
       {currentSong && (
