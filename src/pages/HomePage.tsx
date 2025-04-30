@@ -343,22 +343,22 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
         </div>
 
         {sortedAndFilteredSongs.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedAndFilteredSongs.map((song) => (
-            <SongCard
-              key={song.id}
-              song={song}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {sortedAndFilteredSongs.map((song) => (
+              <SongCard
+                key={song.id}
+                song={song}
                 onFavorite={handleToggleFavorite}
-              isActive={activeSong === song.id}
-              onClick={() => setActiveSong(song.id)}
-            />
-          ))}
-        </div>
+                isActive={activeSong === song.id}
+                onClick={() => setActiveSong(song.id)}
+              />
+            ))}
+          </div>
         ) : (
           <p className="text-center py-12 text-gray-400">
             {searchTerm ? 'No songs found matching your search.' : 'No songs available.'}
           </p>
-      )}
+        )}
       </section>
       
       {currentSong && (

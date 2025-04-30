@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info } from "lucide-react";
+import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { logoutUser } from "@/lib/firebase";
@@ -58,20 +58,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
             <Home className={`h-6 w-6 ${isActive('/') ? 'text-purple-500' : 'text-gray-400'}`} />
           </div>
           <span className={`text-xs mt-0.5 ${isActive('/') ? 'text-purple-500' : 'text-gray-400'}`}>Home</span>
-        </Link>
-
-        <Link to="/artists" className="flex flex-col items-center">
-          <div className={`p-2 rounded-lg ${isActive('/artists') ? 'bg-[#282828]' : ''}`}>
-            <Users className={`h-6 w-6 ${isActive('/artists') ? 'text-purple-500' : 'text-gray-400'}`} />
-          </div>
-          <span className={`text-xs mt-0.5 ${isActive('/artists') ? 'text-purple-500' : 'text-gray-400'}`}>Artists</span>
-        </Link>
-
-        <Link to="/archived" className="flex flex-col items-center">
-          <div className={`p-2 rounded-lg ${isActive('/archived') ? 'bg-[#282828]' : ''}`}>
-            <Archive className={`h-6 w-6 ${isActive('/archived') ? 'text-purple-500' : 'text-gray-400'}`} />
-          </div>
-          <span className={`text-xs mt-0.5 ${isActive('/archived') ? 'text-purple-500' : 'text-gray-400'}`}>Archived</span>
         </Link>
 
         {currentUser ? (
@@ -139,26 +125,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
               </Button>
             </Link>
 
-            <Link to="/artists">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
-              >
-                <Users className="mr-2 h-5 w-5" />
-                Artists
-              </Button>
-            </Link>
-
-            <Link to="/archived">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
-              >
-                <Archive className="mr-2 h-5 w-5" />
-                Archived
-              </Button>
-            </Link>
-            
             {currentUser && (
               <>
                 <Link to="/favorites">
@@ -217,23 +183,14 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
           </nav>
 
           {currentUser && (
-            <div className="mt-auto pt-4 space-y-1 border-t border-[#282828]">
-              <Link to="/profile">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
-                >
-                  <User className="mr-2 h-5 w-5" />
-                  Profile
-                </Button>
-              </Link>
+            <div className="mt-auto">
               <Button
                 variant="ghost"
                 className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
                 onClick={handleLogout}
               >
                 <LogOut className="mr-2 h-5 w-5" />
-                Sign Out
+                Logout
               </Button>
             </div>
           )}
