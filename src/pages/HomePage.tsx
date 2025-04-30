@@ -48,6 +48,7 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const navigate = useNavigate();
   const [recommendedSongs, setRecommendedSongs] = useState<Song[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [showUnreleased, setShowUnreleased] = useState(true);
 
   const parseDate = (date: any): Date | null => {
     if (!date) return null;
@@ -139,24 +140,15 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     }
   }, [songs]);
 
-  const sortedAndFilteredSongs = (songs || [])
+  // Filter and sort songs
+  const filteredSongs = songs
+    .filter(song => song.verificationStatus !== 'pending')
     .filter(song => {
-      const matchesSearch = 
-        song.title.toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-        song.artist.toLowerCase().includes((searchTerm || '').toLowerCase());
-      
-      const matchesRelease = !showReleasingThisWeek || isReleasingThisWeek(song.releaseDate);
-      
-      // Add logging to debug genre matching
-      console.log('Song:', song.title, 'Genre:', song.genre, 'Selected:', selectedGenre, 
-                  'Matches:', selectedGenre === "All" || song.genre === selectedGenre);
-      
+      const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        song.artists.some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesGenre = selectedGenre === "All" || song.genre === selectedGenre;
-      
-      // Don't show archived songs
-      const isNotArchived = !isArchived(song.releaseDate);
-      
-      return matchesSearch && matchesRelease && matchesGenre && isNotArchived;
+      const matchesReleaseFilter = showUnreleased || !song.isUnreleased;
+      return matchesSearch && matchesGenre && matchesReleaseFilter;
     })
     .sort((a, b) => getRecentFavoriteCount(b) - getRecentFavoriteCount(a));
 
@@ -303,36 +295,8 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   }, [currentUser]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-      {currentUser && (
-        <section className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Music className="h-5 w-5 text-music" />
-            <h2 className="text-xl font-semibold">Recommended for You</h2>
-      </div>
-      
-          {isLoadingRecommendations ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-music"></div>
-            </div>
-          ) : recommendedSongs.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recommendedSongs.map((song) => (
-                <SongCard
-                  key={song.id}
-                  song={song}
-                  onFavorite={handleToggleFavorite}
-                  isActive={false}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="text-center py-12 text-gray-400">
-              Start following artists and liking songs to get personalized recommendations!
-            </p>
-          )}
-        </section>
-      )}
+    <div>
+      {/* Recommendations section temporarily hidden */}
 
       <section className="space-y-4">
         <div className="flex items-center gap-2">
@@ -342,23 +306,23 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
           </h2>
         </div>
 
-        {sortedAndFilteredSongs.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sortedAndFilteredSongs.map((song) => (
-            <SongCard
-              key={song.id}
-              song={song}
+        {filteredSongs.length > 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {filteredSongs.map((song) => (
+              <SongCard
+                key={song.id}
+                song={song}
                 onFavorite={handleToggleFavorite}
-              isActive={activeSong === song.id}
-              onClick={() => setActiveSong(song.id)}
-            />
-          ))}
-        </div>
+                isActive={activeSong === song.id}
+                onClick={() => setActiveSong(song.id)}
+              />
+            ))}
+          </div>
         ) : (
           <p className="text-center py-12 text-gray-400">
             {searchTerm ? 'No songs found matching your search.' : 'No songs available.'}
           </p>
-      )}
+        )}
       </section>
       
       {currentSong && (
