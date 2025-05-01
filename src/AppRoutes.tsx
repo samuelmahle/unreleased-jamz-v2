@@ -18,6 +18,7 @@ import ArchivedPage from "@/pages/ArchivedPage";
 import ArtistPage from '@/pages/ArtistPage';
 import ArtistsPage from '@/pages/ArtistsPage';
 import AboutPage from '@/pages/AboutPage';
+import PendingSongsPage from '@/pages/PendingSongsPage';
 import { VerificationProvider } from './contexts/VerificationContext';
 import { AdminProvider } from './contexts/AdminContext';
 
@@ -99,6 +100,7 @@ function AppRoutes() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/song/:id" element={<SongPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/pending" element={<PendingSongsPage songs={songs} searchTerm={searchTerm} />} />
             </Routes>
           </div>
         </main>

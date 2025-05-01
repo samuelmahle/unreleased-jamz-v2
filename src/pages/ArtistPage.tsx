@@ -7,7 +7,7 @@ import { Song } from '@/types/song';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import SongCard from '@/components/SongCard';
+import SongCard from '@/components/song-card';
 import { Badge } from '@/components/ui/badge';
 import { Verified, Instagram, Twitter, Globe, Music2 } from 'lucide-react';
 

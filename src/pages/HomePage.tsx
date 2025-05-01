@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import SongCard from "@/components/SongCard";
+import SongCard from "@/components/song-card";
 import MusicPlayer from "@/components/MusicPlayer";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -144,11 +144,21 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const filteredSongs = songs
     .filter(song => song.verificationStatus !== 'pending')
     .filter(song => {
-      const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.artists.some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
+      if (!searchTerm) return true; // If no search term, show all songs
+      
+      const searchLower = searchTerm.toLowerCase();
+      const titleMatch = song.title?.toLowerCase().includes(searchLower) || false;
+      const artistMatch = song.artists?.some(artist => 
+        artist?.toLowerCase().includes(searchLower)
+      ) || false;
+      const genreMatch = song.genre?.toLowerCase().includes(searchLower) || false;
+      
+      return titleMatch || artistMatch || genreMatch;
+    })
+    .filter(song => {
       const matchesGenre = selectedGenre === "All" || song.genre === selectedGenre;
       const matchesReleaseFilter = showUnreleased || !song.isUnreleased;
-      return matchesSearch && matchesGenre && matchesReleaseFilter;
+      return matchesGenre && matchesReleaseFilter;
     })
     .sort((a, b) => getRecentFavoriteCount(b) - getRecentFavoriteCount(a));
 
@@ -301,40 +311,13 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
 
   return (
     <div className="p-6">
-      {/* Trending This Week Section */}
-      <section className="mb-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Music className="h-6 w-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Trending This Week</h2>
-        </div>
-
-        {trendingSongs.length > 0 ? (
-          <div className="flex overflow-x-auto space-x-4 pb-4 -mx-2 px-2 hide-scrollbar">
-            {trendingSongs.map((song) => (
-              <div key={song.id} className="flex-none w-[300px]">
-                <SongCard
-                  song={song}
-                  onFavorite={handleToggleFavorite}
-                  isActive={activeSong === song.id}
-                  onClick={() => setActiveSong(song.id)}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-gray-400 text-center py-8">
-            No songs available.
-          </div>
-        )}
-      </section>
-
       {/* Filters Section */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-wrap items-center gap-6 mb-8 bg-[#282828] p-4 rounded-lg">
         <Select
           value={selectedGenre}
           onValueChange={setSelectedGenre}
         >
-          <SelectTrigger className="w-[180px] bg-[#282828] border-none">
+          <SelectTrigger className="w-[180px] bg-[#1a1a1a] border-[#383838] focus:ring-purple-500 focus:ring-offset-0">
             <SelectValue placeholder="Select Genre" />
           </SelectTrigger>
           <SelectContent>
@@ -346,29 +329,43 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
           </SelectContent>
         </Select>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-3">
           <Switch
             id="unreleased"
             checked={showUnreleased}
             onCheckedChange={setShowUnreleased}
+            className="data-[state=checked]:bg-purple-500"
           />
-          <Label htmlFor="unreleased">Show Unreleased</Label>
+          <Label htmlFor="unreleased" className="text-gray-200 font-medium">
+            Show Unreleased
+          </Label>
         </div>
       </div>
 
-      {/* All Songs Section */}
-      <section className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredSongs.map((song) => (
-            <SongCard
-              key={song.id}
-              song={song}
-              onFavorite={handleToggleFavorite}
-              isActive={activeSong === song.id}
-              onClick={() => setActiveSong(song.id)}
-            />
-          ))}
+      {/* Trending This Week Section */}
+      <section>
+        <div className="flex items-center gap-2 mb-6">
+          <Music className="h-6 w-6 text-purple-500" />
+          <h2 className="text-2xl font-bold text-white">Trending This Week</h2>
         </div>
+
+        {trendingSongs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {trendingSongs.map((song) => (
+              <SongCard
+                key={song.id}
+                song={song}
+                onFavorite={handleToggleFavorite}
+                isActive={activeSong === song.id}
+                onClick={() => setActiveSong(song.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-400 text-center py-8">
+            No songs available.
+          </div>
+        )}
       </section>
 
       {currentSong && (
@@ -385,3 +382,4 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
 };
 
 export default HomePage;
+

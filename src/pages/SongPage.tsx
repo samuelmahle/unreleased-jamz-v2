@@ -18,12 +18,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { useAdmin } from '@/contexts/AdminContext';
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { useAdmin } from '../contexts/AdminContext';
 
 const REPORT_REASONS = [
   { id: 'wrong_artist', label: 'Wrong Artist', description: 'The artist attribution is incorrect' },

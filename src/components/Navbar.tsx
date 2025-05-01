@@ -87,6 +87,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
               <span className={`text-xs mt-0.5 ${isActive('/favorites') ? 'text-purple-500' : 'text-gray-400'}`}>Favorites</span>
             </Link>
 
+            <Link to="/pending" className="flex flex-col items-center">
+              <div className={`p-2 rounded-lg ${isActive('/pending') ? 'bg-[#282828]' : ''}`}>
+                <ListChecks className={`h-6 w-6 ${isActive('/pending') ? 'text-purple-500' : 'text-gray-400'}`} />
+              </div>
+              <span className={`text-xs mt-0.5 ${isActive('/pending') ? 'text-purple-500' : 'text-gray-400'}`}>Pending</span>
+            </Link>
+
             <Link to="/upload" className="flex flex-col items-center">
               <div className={`p-2 rounded-lg ${isActive('/upload') ? 'bg-[#282828]' : ''}`}>
                 <Upload className={`h-6 w-6 ${isActive('/upload') ? 'text-purple-500' : 'text-gray-400'}`} />
@@ -136,27 +143,15 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
               </Button>
             </Link>
 
-            {/* Artists and Archived buttons temporarily hidden
-            <Link to="/artists">
+            <Link to="/pending">
               <Button
                 variant="ghost"
                 className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
               >
-                <Users className="mr-2 h-5 w-5" />
-                Artists
+                <ListChecks className="mr-2 h-5 w-5" />
+                Pending Songs
               </Button>
             </Link>
-
-            <Link to="/archived">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
-              >
-                <Archive className="mr-2 h-5 w-5" />
-                Archived
-              </Button>
-            </Link>
-            */}
             
             {currentUser && (
               <>

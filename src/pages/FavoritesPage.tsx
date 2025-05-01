@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Song } from '@/types/song';
-import SongCard from '@/components/SongCard';
+import SongCard from '@/components/song-card';
 import { toggleFavorite } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { Switch } from '@/components/ui/switch';

@@ -1,17 +1,19 @@
 import React from "react";
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { format } from "date-fns";
-import { Heart, Share2 } from "lucide-react";
+import { Heart, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "../../components/ui/tooltip";
 import { toast } from "sonner";
-import { Song } from "@/types/song";
+import { Song } from "../../types/song";
 import { Timestamp } from "firebase/firestore";
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
 
 const isValidSoundCloudUrl = (url: string | null): boolean => {
   if (!url) return false;
@@ -61,9 +63,12 @@ const getFormattedDate = (date: any): string => {
 
 interface SongCardProps {
   song: Song;
-  onFavorite: (songId: string) => void;
-  isActive: boolean;
+  onFavorite?: (songId: string) => Promise<void>;
+  isActive?: boolean;
   onClick?: () => void;
+  showVerificationStatus?: boolean;
+  onUpvote?: (songId: string) => void;
+  onDownvote?: (songId: string) => void;
 }
 
 const SongCard: React.FC<SongCardProps> = ({
@@ -71,6 +76,9 @@ const SongCard: React.FC<SongCardProps> = ({
   onFavorite,
   isActive,
   onClick,
+  showVerificationStatus = false,
+  onUpvote,
+  onDownvote,
 }) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -99,7 +107,7 @@ const SongCard: React.FC<SongCardProps> = ({
       });
       return;
     }
-    onFavorite(song.id);
+    onFavorite?.(song.id);
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -247,6 +255,48 @@ const SongCard: React.FC<SongCardProps> = ({
             {getFormattedDate(song.releaseDate)}
           </span>
         </div>
+
+        {showVerificationStatus && song.verificationStatus === 'pending' && (
+          <div className="mt-2 flex items-center justify-between text-sm">
+            <Badge variant="outline" className="text-yellow-500 border-yellow-500">
+              Pending • {Math.max(0, ((song.upvotes?.length || 0) - (song.downvotes?.length || 0)))}/3
+            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`${
+                  song.upvotes?.includes(currentUser?.uid)
+                    ? 'bg-green-500/10 text-green-500'
+                    : 'text-gray-400 hover:text-green-500'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpvote?.(song.id);
+                }}
+              >
+                <ThumbsUp className="h-4 w-4 mr-1" />
+                {song.upvotes?.length || 0}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`${
+                  song.downvotes?.includes(currentUser?.uid)
+                    ? 'bg-red-500/10 text-red-500'
+                    : 'text-gray-400 hover:text-red-500'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDownvote?.(song.id);
+                }}
+              >
+                <ThumbsDown className="h-4 w-4 mr-1" />
+                {song.downvotes?.length || 0}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
