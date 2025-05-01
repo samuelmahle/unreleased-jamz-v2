@@ -75,20 +75,12 @@ const AppContent = () => {
   };
 
   const handleSongClick = (song: Song) => {
-    console.log('App: handleSongClick called with song:', song);
     try {
-      // Always set the active song first
       if (!activeSong || activeSong.id !== song.id) {
-        console.log('App: Setting new active song');
         setActiveSong(song);
-        // When changing songs, we want to start playing
         setIsPlaying(true);
-        // Navigate to song page
-        console.log('App: Navigating to song page');
         navigate(`/song/${song.id}`);
       } else {
-        console.log('App: Same song clicked, toggling play/pause');
-        // If it's the same song, toggle play/pause
         if (isPlaying) {
           handlePause();
         } else {
@@ -96,7 +88,7 @@ const AppContent = () => {
         }
       }
     } catch (error) {
-      console.error('App: Error handling song click:', error);
+      console.error('Error handling song click:', error);
       toast.error('Unable to play song: An error occurred');
     }
   };
@@ -130,7 +122,6 @@ const AppContent = () => {
     if (currentIndex < songs.length - 1) {
       const nextSong = songs[currentIndex + 1];
       setActiveSong(nextSong);
-      // When changing songs, we want to start playing
       setIsPlaying(true);
     }
   };
@@ -142,7 +133,6 @@ const AppContent = () => {
     if (currentIndex > 0) {
       const previousSong = songs[currentIndex - 1];
       setActiveSong(previousSong);
-      // When changing songs, we want to start playing
       setIsPlaying(true);
     }
   };
@@ -174,7 +164,7 @@ const AppContent = () => {
       <main className="lg:pl-64 pb-20">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<HomePage songs={filteredSongs} setSongs={setSongs} searchTerm={searchTerm} />} />
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/upload" element={<UploadPage />} />
             <Route path="/login" element={<LoginPage />} />
