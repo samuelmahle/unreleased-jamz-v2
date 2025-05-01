@@ -19,8 +19,9 @@ import ArtistPage from '@/pages/ArtistPage';
 import ArtistsPage from '@/pages/ArtistsPage';
 import AboutPage from '@/pages/AboutPage';
 import PendingSongsPage from '@/pages/PendingSongsPage';
-import { VerificationProvider } from './contexts/VerificationContext';
-import { AdminProvider } from './contexts/AdminContext';
+import ReportsPage from '@/pages/ReportsPage';
+import { VerificationProvider } from '@/contexts/VerificationContext';
+import { AdminProvider } from '@/contexts/AdminContext';
 
 function AppRoutes() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -101,6 +102,7 @@ function AppRoutes() {
               <Route path="/song/:id" element={<SongPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/pending" element={<PendingSongsPage songs={songs} searchTerm={searchTerm} />} />
+              <Route path="/reports" element={<ReportsPage />} />
             </Routes>
           </div>
         </main>

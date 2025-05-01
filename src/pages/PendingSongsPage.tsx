@@ -1,9 +1,10 @@
 import React from 'react';
-import { Song } from '../types/song';
+import { useNavigate } from 'react-router-dom';
+import { Song } from '@/types/song';
 import SongCard from '@/components/song-card';
 import { Music } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { useVerification } from '../contexts/VerificationContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useVerification } from '@/contexts/VerificationContext';
 import { toast } from 'sonner';
 
 interface PendingSongsPageProps {
@@ -12,6 +13,7 @@ interface PendingSongsPageProps {
 }
 
 const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }) => {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { upvoteVerification, downvoteVerification } = useVerification();
 

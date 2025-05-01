@@ -94,8 +94,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
   };
 
   const filteredSongs = songs
-    .filter(song => song.isFavorite)
-    .filter(song => song.verificationStatus !== 'pending') // Show all songs that have been confirmed
+    .filter(song => userFavorites?.includes(song.id))
     .filter(song => {
       const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         song.artists.some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
