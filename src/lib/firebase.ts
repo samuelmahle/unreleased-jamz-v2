@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, getDocs } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { UserProfile } from '@/types/user';
 
 // Your web app's Firebase configuration
@@ -141,4 +141,42 @@ export const searchArtists = async (searchTerm: string): Promise<(UserProfile & 
     console.error('Error searching artists:', error);
     throw error;
   }
+};
+
+export const ensureSuperAdmin = async (uid: string, email: string) => {
+  try {
+    const adminRef = doc(db, 'admins', uid);
+    const adminDoc = await getDoc(adminRef);
+
+    if (!adminDoc.exists() && email === 'sam18mahle@gmail.com') {
+      const superAdminData = {
+        uid,
+        email,
+        role: 'super_admin' as const,
+        permissions: {
+          canManageAdmins: true,
+          canVerifyArtists: true,
+          canManageReports: true,
+          canBulkImport: true,
+          canEditAllSongs: true,
+        },
+        addedBy: uid,
+        addedAt: new Date(),
+        lastActive: new Date(),
+      };
+
+      await setDoc(adminRef, superAdminData);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error ensuring super admin:', error);
+    throw error;
+  }
+};
+
+// Song deletion function
+export const deleteSong = async (songId: string) => {
+  const songRef = doc(db, 'songs', songId);
+  await deleteDoc(songRef);
 };

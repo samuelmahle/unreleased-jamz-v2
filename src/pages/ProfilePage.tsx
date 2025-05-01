@@ -1,147 +1,129 @@
-import React, { useState, useEffect } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
+import { useAdmin } from '@/contexts/AdminContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
-import { updatePassword } from 'firebase/auth';
+import { Badge } from '@/components/ui/badge';
+import { Crown, Shield, Star, User as UserIcon } from 'lucide-react';
 
 const ProfilePage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userPoints, userRole } = useAuth();
+  const { isSuperAdmin } = useAdmin();
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
 
-  useEffect(() => {
-    if (currentUser?.profileData) {
-      setNewUsername(currentUser.profileData.username);
-    }
-  }, [currentUser]);
-
-  const handleUpdateProfile = async () => {
-    if (!currentUser?.uid) return;
-    
-    setLoading(true);
-    try {
-      // Update username in Firestore
-      if (newUsername !== currentUser.profileData?.username) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userRef, {
-          username: newUsername,
-        });
-        toast.success('Username updated successfully');
-      }
-
-      // Update password if provided
-      if (newPassword) {
-        if (newPassword !== confirmPassword) {
-          toast.error('Passwords do not match');
-          return;
-        }
-        if (newPassword.length < 6) {
-          toast.error('Password must be at least 6 characters');
-          return;
-        }
-        await updatePassword(currentUser, newPassword);
-        toast.success('Password updated successfully');
-      }
-
-      setIsEditing(false);
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
-    } finally {
-      setLoading(false);
+  const getBadgeContent = () => {
+    switch (userRole) {
+      case 'super_admin':
+        return {
+          label: 'Super Admin',
+          icon: <Crown className="h-4 w-4 mr-1" />,
+          color: 'bg-purple-500'
+        };
+      case 'admin':
+        return {
+          label: 'Admin',
+          icon: <Shield className="h-4 w-4 mr-1" />,
+          color: 'bg-blue-500'
+        };
+      case 'verified_contributor':
+        return {
+          label: 'Verified Contributor',
+          icon: <Star className="h-4 w-4 mr-1" />,
+          color: 'bg-green-500'
+        };
+      default:
+        return {
+          label: 'User',
+          icon: <UserIcon className="h-4 w-4 mr-1" />,
+          color: 'bg-gray-500'
+        };
     }
   };
 
-  if (!currentUser?.profileData) {
-    return (
-      <div className="flex justify-center items-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-music"></div>
-      </div>
-    );
-  }
+  const badge = getBadgeContent();
 
   return (
-    <div className="max-w-2xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Profile Settings</h1>
         <Button
-          onClick={() => setIsEditing(!isEditing)}
           variant="outline"
-          className="hover:bg-gray-800"
+          onClick={() => setIsEditing(!isEditing)}
+          className="bg-[#282828] text-white hover:bg-[#383838]"
         >
           {isEditing ? 'Cancel' : 'Edit Profile'}
         </Button>
       </div>
-      
-      <div className="space-y-6 bg-gray-900/50 backdrop-blur-sm p-6 rounded-xl border border-gray-800">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-base font-medium mb-2">Email</label>
-            <Input
-              type="email"
-              value={currentUser.profileData.email}
-              disabled
-              className="bg-gray-800/50 border-gray-700"
-            />
+
+      <div className="space-y-8">
+        <div className="bg-[#1c1c1c] rounded-lg p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Account Status</h2>
+              <div className="flex items-center gap-4">
+                <Badge 
+                  className={`${badge.color} flex items-center px-3 py-1`}
+                  variant="secondary"
+                >
+                  {badge.icon}
+                  {badge.label}
+                </Badge>
+                <div className="text-sm text-gray-400">
+                  {userPoints} points
+                </div>
+              </div>
+            </div>
+            {userRole === 'user' && (
+              <div className="text-sm text-gray-400">
+                {1000 - userPoints} points needed for Verified Contributor
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-base font-medium mb-2">Username</label>
-            <Input
-              type="text"
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
-              disabled={!isEditing}
-              className="bg-gray-800/50 border-gray-700"
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">Email</label>
+              <Input
+                type="email"
+                value={currentUser?.email || ''}
+                disabled={true}
+                className="bg-[#282828] border-[#383838]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Username</label>
+              <Input
+                type="text"
+                value={currentUser?.displayName || ''}
+                disabled={!isEditing}
+                className="bg-[#282828] border-[#383838]"
+              />
+            </div>
           </div>
-
-          {isEditing && (
-            <>
-              <div>
-                <label className="block text-base font-medium mb-2">New Password</label>
-                <Input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  className="bg-gray-800/50 border-gray-700"
-                />
-              </div>
-
-              <div>
-                <label className="block text-base font-medium mb-2">Confirm Password</label>
-                <Input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className="bg-gray-800/50 border-gray-700"
-                />
-              </div>
-            </>
-          )}
         </div>
 
-        {isEditing && (
-          <div className="flex justify-end">
-            <Button
-              onClick={handleUpdateProfile}
-              disabled={loading}
-              className="bg-music hover:bg-music-light text-white"
-            >
-              {loading ? 'Saving...' : 'Save Changes'}
-            </Button>
+        <div className="bg-[#1c1c1c] rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4">Points History</h2>
+          <div className="space-y-2 text-sm text-gray-400">
+            <div className="flex justify-between">
+              <span>Upload songs</span>
+              <span>+100 points each</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Song verified</span>
+              <span>+200 points</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Upvote songs</span>
+              <span>+10 points each</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Report invalid content</span>
+              <span>+50 points</span>
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -1,58 +1,60 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Song } from '@/types/song';
-import { Heart, Share2, ArrowLeft } from 'lucide-react';
+import { Heart, Share2, ArrowLeft, Flag, ThumbsUp, ThumbsDown, AlertTriangle, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+import { useVerification } from '@/contexts/VerificationContext';
+import { getFormattedDate } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Timestamp } from 'firebase/firestore';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-// Robust date handling utility
-const getFormattedDate = (date: any): string => {
-  if (!date) return 'Release date unknown';
-  
-  try {
-    let parsedDate: Date;
-    
-    if (date instanceof Timestamp) {
-      parsedDate = date.toDate();
-    } else if (typeof date === 'string') {
-      // Try parsing ISO string first
-      parsedDate = new Date(date);
-      
-      // If that fails, try parsing as a timestamp number
-      if (isNaN(parsedDate.getTime())) {
-        const timestamp = parseInt(date, 10);
-        if (!isNaN(timestamp)) {
-          parsedDate = new Date(timestamp);
-        }
-      }
-    } else if (typeof date === 'number') {
-      parsedDate = new Date(date);
-    } else {
-      return 'Release date unknown';
-    }
+const REPORT_REASONS = [
+  { id: 'wrong_artist', label: 'Wrong Artist', description: 'The artist attribution is incorrect' },
+  { id: 'fake_leak', label: 'Fake Leak', description: 'This is not a genuine unreleased track' },
+  { id: 'duplicate', label: 'Duplicate Upload', description: 'This song has already been uploaded' },
+  { id: 'wrong_title', label: 'Wrong Title', description: 'The song title is incorrect' },
+  { id: 'copyright', label: 'Copyright Violation', description: 'This upload violates copyright laws' },
+  { id: 'other', label: 'Other', description: 'Other issue not listed above' },
+];
 
-    if (isNaN(parsedDate.getTime())) {
-      return 'Release date unknown';
-    }
-
-    return format(parsedDate, 'MMM d, yyyy');
-  } catch (error) {
-    console.error('Error formatting date:', error);
-    return 'Release date unknown';
-  }
-};
+const DOWNVOTE_REASONS = [
+  { id: 'wrong_artist', label: 'Wrong Artist', description: 'The artist attribution is incorrect' },
+  { id: 'fake_leak', label: 'Fake Leak', description: 'This is not a genuine unreleased track' },
+  { id: 'duplicate', label: 'Duplicate Upload', description: 'This song has already been uploaded' },
+  { id: 'wrong_title', label: 'Wrong Title', description: 'The song title is incorrect' },
+  { id: 'low_quality', label: 'Low Quality', description: 'The audio quality is too poor' },
+  { id: 'other', label: 'Other', description: 'Other issue not listed above' },
+];
 
 const SongPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [song, setSong] = useState<Song | null>(null);
   const { currentUser, userFavorites } = useAuth();
+  const { canConfirmSong, canReportSong, canEditSong, confirmSong, reportSong } = useVerification();
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedReportReason, setSelectedReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
+  const [isDownvoteDialogOpen, setIsDownvoteDialogOpen] = useState(false);
+  const [selectedDownvoteReason, setSelectedDownvoteReason] = useState('');
+  const [downvoteDetails, setDownvoteDetails] = useState('');
 
   useEffect(() => {
     const fetchSong = async () => {
@@ -90,6 +92,141 @@ const SongPage = () => {
     }
   };
 
+  const handleUpvote = async () => {
+    if (!song || !currentUser) return;
+    try {
+      const songRef = doc(db, 'songs', song.id);
+      const songDoc = await getDoc(songRef);
+      const songData = songDoc.data();
+      
+      // Remove any existing downvote
+      const downvotedBy = songData?.downvotedBy?.filter((uid: string) => uid !== currentUser.uid) || [];
+      const upvotedBy = songData?.upvotedBy || [];
+      
+      // Toggle upvote
+      const hasUpvoted = upvotedBy.includes(currentUser.uid);
+      const newUpvotedBy = hasUpvoted 
+        ? upvotedBy.filter((uid: string) => uid !== currentUser.uid)
+        : [...upvotedBy, currentUser.uid];
+      
+      const netVotes = newUpvotedBy.length - downvotedBy.length;
+      const shouldVerify = netVotes >= 3;
+      
+      await updateDoc(songRef, {
+        upvotedBy: newUpvotedBy,
+        downvotedBy,
+        upvotes: newUpvotedBy.length,
+        downvotes: downvotedBy.length,
+        verificationStatus: shouldVerify ? 'verified' : 'pending'
+      });
+      
+      // Refresh song data
+      const updatedDoc = await getDoc(songRef);
+      setSong({
+        ...updatedDoc.data() as Song,
+        id: updatedDoc.id,
+        isFavorite: userFavorites.includes(updatedDoc.id)
+      });
+      
+      toast.success(hasUpvoted ? 'Upvote removed' : 'Song upvoted');
+      if (shouldVerify) {
+        toast.success('Song has been verified!');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upvote song');
+    }
+  };
+
+  const handleDownvote = async () => {
+    if (!song || !currentUser || !selectedDownvoteReason) {
+      toast.error('Please select a reason for downvoting');
+      return;
+    }
+
+    try {
+      const songRef = doc(db, 'songs', song.id);
+      const songDoc = await getDoc(songRef);
+      const songData = songDoc.data();
+      
+      // Remove any existing upvote
+      const upvotedBy = songData?.upvotedBy?.filter((uid: string) => uid !== currentUser.uid) || [];
+      const downvotedBy = songData?.downvotedBy || [];
+      
+      // Add downvote if not already downvoted
+      if (!downvotedBy.includes(currentUser.uid)) {
+        downvotedBy.push(currentUser.uid);
+      }
+
+      // Add to admin dashboard
+      const downvoteData = {
+        songId: song.id,
+        songTitle: song.title,
+        userId: currentUser.uid,
+        reason: selectedDownvoteReason,
+        details: downvoteDetails.trim(),
+        timestamp: new Date(),
+      };
+      
+      await Promise.all([
+        updateDoc(songRef, {
+          upvotedBy,
+          downvotedBy,
+          upvotes: upvotedBy.length,
+          downvotes: downvotedBy.length
+        }),
+        addDoc(collection(db, 'downvotes'), downvoteData)
+      ]);
+      
+      // Refresh song data
+      const updatedDoc = await getDoc(songRef);
+      setSong({
+        ...updatedDoc.data() as Song,
+        id: updatedDoc.id,
+        isFavorite: userFavorites.includes(updatedDoc.id)
+      });
+      
+      setIsDownvoteDialogOpen(false);
+      setSelectedDownvoteReason('');
+      setDownvoteDetails('');
+      toast.success('Song downvoted');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to downvote song');
+    }
+  };
+
+  const handleReport = async () => {
+    if (!song || !selectedReportReason) {
+      toast.error('Please select a reason for reporting');
+      return;
+    }
+
+    const reportData = {
+      reason: selectedReportReason,
+      details: reportDetails.trim(),
+      timestamp: new Date(),
+    };
+
+    try {
+      await reportSong(song.id, reportData);
+      toast.success('Report submitted successfully');
+      setIsReportDialogOpen(false);
+      setSelectedReportReason('');
+      setReportDetails('');
+      
+      // Refresh song data to get updated report status
+      const songDoc = await getDoc(doc(db, 'songs', song.id));
+      if (songDoc.exists()) {
+        setSong({
+          ...songDoc.data() as Song,
+          id: songDoc.id,
+          isFavorite: userFavorites.includes(songDoc.id)
+        });
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit report');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -101,11 +238,6 @@ const SongPage = () => {
   if (!song) {
     return null;
   }
-
-  const isValidSoundCloudUrl = (url: string | null): boolean => {
-    if (!url) return false;
-    return url.startsWith('https://soundcloud.com/') || url.startsWith('https://on.soundcloud.com/');
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -120,12 +252,81 @@ const SongPage = () => {
 
       <div className="bg-music-surface rounded-lg p-6">
         <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">{song.title}</h1>
-          <p className="text-lg text-gray-300">{song.artist}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <h1 className="text-2xl sm:text-3xl font-bold">{song.title}</h1>
+                {song.verificationStatus === 'pending' ? (
+                  <Badge variant="outline" className="text-yellow-500 border-yellow-500">
+                    Pending • {Math.max(0, ((song.upvotes || 0) - (song.downvotes || 0)))}/3
+                  </Badge>
+                ) : song.verificationStatus === 'artist_verified' ? (
+                  <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">
+                    Artist Verified
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="text-lg text-gray-300">{song.artist}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              {song && canEditSong(song) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-500 border-blue-500 hover:bg-blue-500/10"
+                  onClick={() => navigate(`/songs/${song.id}/edit`)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+              {song.verificationStatus === 'pending' && currentUser && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`${
+                      song.upvotedBy?.includes(currentUser.uid)
+                        ? 'bg-green-500/10 text-green-500 border-green-500'
+                        : 'text-gray-400 border-gray-400 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500'
+                    }`}
+                    onClick={handleUpvote}
+                  >
+                    <ThumbsUp className="h-4 w-4 mr-2" />
+                    {song.upvotes || 0}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={`${
+                      song.downvotedBy?.includes(currentUser.uid)
+                        ? 'bg-red-500/10 text-red-500 border-red-500'
+                        : 'text-gray-400 border-gray-400 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500'
+                    }`}
+                    onClick={() => setIsDownvoteDialogOpen(true)}
+                  >
+                    <ThumbsDown className="h-4 w-4 mr-2" />
+                    {song.downvotes || 0}
+                  </Button>
+                </>
+              )}
+              {canReportSong(song) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-500 border-red-500 hover:bg-red-500/10"
+                  onClick={() => setIsReportDialogOpen(true)}
+                >
+                  <Flag className="h-4 w-4 mr-2" />
+                  Report
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="aspect-video mb-6">
-          {song.soundcloudUrl && isValidSoundCloudUrl(song.soundcloudUrl) ? (
+          {song.soundcloudUrl ? (
             <iframe
               width="100%"
               height="100%"
@@ -166,10 +367,124 @@ const SongPage = () => {
           </div>
           
           <span className="text-sm text-gray-400">
-            {song.releaseDate ? `Releasing ${getFormattedDate(song.releaseDate)}` : 'Release date unknown'}
+            {getFormattedDate(song.releaseDate)}
           </span>
         </div>
       </div>
+
+      <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-500" />
+              Report Song
+            </DialogTitle>
+            <DialogDescription>
+              Please select a reason for reporting this song. This will help moderators review the issue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <RadioGroup
+              value={selectedReportReason}
+              onValueChange={setSelectedReportReason}
+              className="space-y-3"
+            >
+              {REPORT_REASONS.map((reason) => (
+                <div key={reason.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-gray-800/50">
+                  <RadioGroupItem value={reason.id} id={reason.id} />
+                  <Label htmlFor={reason.id} className="grid gap-1 cursor-pointer">
+                    <span className="font-medium">{reason.label}</span>
+                    <span className="text-sm text-gray-400">{reason.description}</span>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+
+            <div className="space-y-2">
+              <Label htmlFor="details">Additional Details (Optional)</Label>
+              <Textarea
+                id="details"
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                placeholder="Provide any additional context that might help with the review..."
+                className="resize-none"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReportDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleReport}
+              disabled={!selectedReportReason}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isDownvoteDialogOpen} onOpenChange={setIsDownvoteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ThumbsDown className="h-5 w-5 text-red-500" />
+              Downvote Song
+            </DialogTitle>
+            <DialogDescription>
+              Please select a reason for downvoting this song. This will help moderators review the issue.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <RadioGroup
+              value={selectedDownvoteReason}
+              onValueChange={setSelectedDownvoteReason}
+              className="space-y-3"
+            >
+              {DOWNVOTE_REASONS.map((reason) => (
+                <div key={reason.id} className="flex items-start space-x-3 p-2 rounded-lg hover:bg-gray-800/50">
+                  <RadioGroupItem value={reason.id} id={reason.id} />
+                  <Label htmlFor={reason.id} className="grid gap-1 cursor-pointer">
+                    <span className="font-medium">{reason.label}</span>
+                    <span className="text-sm text-gray-400">{reason.description}</span>
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+
+            <div className="space-y-2">
+              <Label htmlFor="details">Additional Details (Optional)</Label>
+              <Textarea
+                id="details"
+                value={downvoteDetails}
+                onChange={(e) => setDownvoteDetails(e.target.value)}
+                placeholder="Provide any additional context that might help with the review..."
+                className="resize-none"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDownvoteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleDownvote}
+              disabled={!selectedDownvoteReason}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Submit Downvote
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
