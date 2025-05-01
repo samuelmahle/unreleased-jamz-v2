@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { updatePassword } from 'firebase/auth';
+import { Badge } from '@/components/ui/badge';
+import { Trophy } from 'lucide-react';
 
 const ProfilePage = () => {
   const { currentUser } = useAuth();
@@ -14,11 +16,32 @@ const ProfilePage = () => {
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   useEffect(() => {
-    if (currentUser?.profileData) {
-      setNewUsername(currentUser.profileData.username);
-    }
+    const loadProfile = async () => {
+      if (!currentUser?.uid) {
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const userDoc = await getDoc(userRef);
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setNewUsername(userData.username || '');
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        toast.error('Failed to load profile data');
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
   }, [currentUser]);
 
   const handleUpdateProfile = async () => {
@@ -26,13 +49,12 @@ const ProfilePage = () => {
     
     setLoading(true);
     try {
-      // Update username in Firestore
-      if (newUsername !== currentUser.profileData?.username) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userRef, {
-          username: newUsername,
-        });
-        toast.success('Username updated successfully');
+      const userRef = doc(db, 'users', currentUser.uid);
+      const updates: any = {};
+
+      // Update username if changed
+      if (newUsername && newUsername !== currentUser.profileData?.username) {
+        updates.username = newUsername;
       }
 
       // Update password if provided
@@ -49,6 +71,12 @@ const ProfilePage = () => {
         toast.success('Password updated successfully');
       }
 
+      // Only update Firestore if there are changes
+      if (Object.keys(updates).length > 0) {
+        await updateDoc(userRef, updates);
+        toast.success('Profile updated successfully');
+      }
+
       setIsEditing(false);
       setNewPassword('');
       setConfirmPassword('');
@@ -60,10 +88,18 @@ const ProfilePage = () => {
     }
   };
 
-  if (!currentUser?.profileData) {
+  if (isLoadingProfile) {
     return (
       <div className="flex justify-center items-center min-h-[50vh]">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-music"></div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex justify-center items-center min-h-[50vh]">
+        <p className="text-gray-400">Please log in to view your profile</p>
       </div>
     );
   }
@@ -82,12 +118,27 @@ const ProfilePage = () => {
       </div>
       
       <div className="space-y-6 bg-gray-900/50 backdrop-blur-sm p-6 rounded-xl border border-gray-800">
+        {/* User Stats Section */}
+        <div className="flex flex-col sm:flex-row gap-4 pb-6 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="px-3 py-1 text-sm font-medium border-music text-music">
+              {currentUser.profileData?.role || 'User'}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-yellow-500" />
+            <span className="text-sm font-medium">
+              {currentUser.profileData?.points || 0} points
+            </span>
+          </div>
+        </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-base font-medium mb-2">Email</label>
             <Input
               type="email"
-              value={currentUser.profileData.email}
+              value={currentUser.email || ''}
               disabled
               className="bg-gray-800/50 border-gray-700"
             />

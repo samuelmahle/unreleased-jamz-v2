@@ -10,8 +10,10 @@ import {
   getAuth,
   sendPasswordResetEmail
 } from "firebase/auth";
-import { app, db } from "@/lib/firebase";
+import { app, db, loginUser, logoutUser, ensureSuperAdmin } from "@/lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { UserRole } from "@/types/user";
+import { toast } from "sonner";
 
 interface UserProfile {
   username: string;
@@ -21,6 +23,8 @@ interface UserProfile {
   createdAt: string;
   isArtist: boolean;
   isVerified: boolean;
+  role: UserRole;
+  points: number;
   bio?: string;
   socialLinks?: {
     instagram?: string;
@@ -30,6 +34,7 @@ interface UserProfile {
   };
   followers: string[];
   following: string[];
+  favorites?: string[];
 }
 
 interface AuthUser extends User {
@@ -45,6 +50,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   sendVerificationEmail: (user: User) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -98,6 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(null);
       }
       setLoading(false);
+      
+      // Ensure super admin status when user logs in
+      if (user && user.email === 'sam18mahle@gmail.com') {
+        ensureSuperAdmin(user.uid, user.email)
+          .catch(error => console.error('Error ensuring super admin:', error));
+      }
     });
 
     return unsubscribe;
@@ -141,11 +153,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (result.user.email === 'sam18mahle@gmail.com') {
+        await ensureSuperAdmin(result.user.uid, result.user.email);
+      }
+      toast.success('Successfully logged in!');
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Failed to log in');
+      throw error;
+    }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+      toast.success('Successfully logged out!');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+      throw error;
+    }
   };
 
   const sendVerificationEmail = async (user: User) => {
@@ -165,6 +194,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     sendVerificationEmail,
     resetPassword,
+    loading
   };
 
   return (

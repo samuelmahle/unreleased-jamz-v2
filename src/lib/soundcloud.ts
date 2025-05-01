@@ -42,4 +42,14 @@ export const extractSoundCloudData = (url: string) => {
     url: cleanUrl,
     embedUrl: getSoundCloudEmbed(cleanUrl)
   };
+};
+
+export const isValidSoundCloudUrl = (url: string | null): boolean => {
+  if (!url) return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname === 'soundcloud.com' || urlObj.hostname === 'on.soundcloud.com';
+  } catch {
+    return false;
+  }
 }; 

@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info } from "lucide-react";
+import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info, Shield, CheckCircle, AlertTriangle, ListChecks } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdmin } from "@/contexts/AdminContext";
 import { logoutUser } from "@/lib/firebase";
 import { toast } from "sonner";
 import { SearchInput } from "./SearchInput";
@@ -13,6 +14,7 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
   const { currentUser } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAdmin();
   const navigate = useNavigate();
   const location = useLocation();
   const [showSearch, setShowSearch] = useState(false);
@@ -60,6 +62,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
           <span className={`text-xs mt-0.5 ${isActive('/') ? 'text-purple-500' : 'text-gray-400'}`}>Home</span>
         </Link>
 
+        {/* Artists and Archived links temporarily hidden
         <Link to="/artists" className="flex flex-col items-center">
           <div className={`p-2 rounded-lg ${isActive('/artists') ? 'bg-[#282828]' : ''}`}>
             <Users className={`h-6 w-6 ${isActive('/artists') ? 'text-purple-500' : 'text-gray-400'}`} />
@@ -73,6 +76,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
           </div>
           <span className={`text-xs mt-0.5 ${isActive('/archived') ? 'text-purple-500' : 'text-gray-400'}`}>Archived</span>
         </Link>
+        */}
 
         {currentUser ? (
           <>
@@ -88,13 +92,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                 <Upload className={`h-6 w-6 ${isActive('/upload') ? 'text-purple-500' : 'text-gray-400'}`} />
               </div>
               <span className={`text-xs mt-0.5 ${isActive('/upload') ? 'text-purple-500' : 'text-gray-400'}`}>Upload</span>
-            </Link>
-
-            <Link to="/profile" className="flex flex-col items-center">
-              <div className={`p-2 rounded-lg ${isActive('/profile') ? 'bg-[#282828]' : ''}`}>
-                <User className={`h-6 w-6 ${isActive('/profile') ? 'text-purple-500' : 'text-gray-400'}`} />
-              </div>
-              <span className={`text-xs mt-0.5 ${isActive('/profile') ? 'text-purple-500' : 'text-gray-400'}`}>Profile</span>
             </Link>
           </>
         ) : (
@@ -139,6 +136,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
               </Button>
             </Link>
 
+            {/* Artists and Archived buttons temporarily hidden
             <Link to="/artists">
               <Button
                 variant="ghost"
@@ -158,6 +156,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                 Archived
               </Button>
             </Link>
+            */}
             
             {currentUser && (
               <>
@@ -212,6 +211,50 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                     Register
                   </Button>
                 </Link>
+              </>
+            )}
+
+            {(isAdmin || isSuperAdmin) && (
+              <>
+                <div className="pt-4 pb-2">
+                  <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Admin Controls
+                  </p>
+                </div>
+
+                <Link to="/admin">
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                  >
+                    <Shield className="mr-2 h-5 w-5" />
+                    Admin Dashboard
+                  </Button>
+                </Link>
+
+                {isSuperAdmin && (
+                  <Link to="/verification-queue">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                    >
+                      <CheckCircle className="mr-2 h-5 w-5" />
+                      Verification Queue
+                    </Button>
+                  </Link>
+                )}
+
+                {isSuperAdmin && (
+                  <Link to="/reports">
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+                    >
+                      <AlertTriangle className="mr-2 h-5 w-5" />
+                      Reports
+                    </Button>
+                  </Link>
+                )}
               </>
             )}
           </nav>

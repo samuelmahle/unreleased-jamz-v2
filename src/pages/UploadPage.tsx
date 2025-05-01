@@ -186,7 +186,19 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
         createdAt: serverTimestamp(),
         favoritedBy: [],
         favoritedAt: [],
+        favoriteCount: 0,
         userId: artistIds[0], // Primary artist's ID
+        verificationStatus: 'pending',
+        confirmations: 0,
+        confirmedBy: [],
+        confirmedAt: [],
+        reports: 0,
+        reportedBy: [],
+        submittedBy: currentUser.uid,
+        submittedAt: new Date(),
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        isHidden: false,
       });
 
       // Create the new song object with all necessary fields
@@ -202,8 +214,20 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
         createdAt: new Date().toISOString(),
         favoritedBy: [],
         favoritedAt: [],
+        favoriteCount: 0,
         isFavorite: false,
         userId: artistIds[0], // Primary artist's ID
+        verificationStatus: 'pending',
+        confirmations: 0,
+        confirmedBy: [],
+        confirmedAt: [],
+        reports: 0,
+        reportedBy: [],
+        submittedBy: currentUser.uid,
+        submittedAt: new Date(),
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        isHidden: false,
       };
 
       // Increment upload count for all artists
@@ -261,14 +285,14 @@ export default function UploadPage({ onSongUpload }: UploadPageProps) {
             <div className="space-y-3">
               {artists.map((artist, index) => (
                 <div key={index} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={artist}
+            <input
+              type="text"
+              value={artist}
                     onChange={(e) => handleArtistChange(index, e.target.value)}
                     placeholder={index === 0 ? "Primary Artist" : `Additional Artist ${index}`}
                     className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-music"
                     required={index === 0}
-                  />
+            />
                   {index > 0 && (
                     <button
                       type="button"

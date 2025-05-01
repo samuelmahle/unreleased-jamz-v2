@@ -294,37 +294,83 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     }
   }, [currentUser]);
 
-  return (
-    <div>
-      {/* Recommendations section temporarily hidden */}
+  // Get trending songs (most favorited in the last week)
+  const trendingSongs = filteredSongs
+    .sort((a, b) => getRecentFavoriteCount(b) - getRecentFavoriteCount(a))
+    .slice(0, 10); // Show top 10 trending songs
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Music className="h-5 w-5 text-music" />
-          <h2 className="text-xl font-semibold">
-            {searchTerm ? 'Search Results' : 'Trending This Week'}
-          </h2>
+  return (
+    <div className="p-6">
+      {/* Trending This Week Section */}
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Music className="h-6 w-6 text-purple-500" />
+          <h2 className="text-2xl font-bold text-white">Trending This Week</h2>
         </div>
 
-        {filteredSongs.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredSongs.map((song) => (
-              <SongCard
-                key={song.id}
-                song={song}
-                onFavorite={handleToggleFavorite}
-                isActive={activeSong === song.id}
-                onClick={() => setActiveSong(song.id)}
-              />
+        {trendingSongs.length > 0 ? (
+          <div className="flex overflow-x-auto space-x-4 pb-4 -mx-2 px-2 hide-scrollbar">
+            {trendingSongs.map((song) => (
+              <div key={song.id} className="flex-none w-[300px]">
+                <SongCard
+                  song={song}
+                  onFavorite={handleToggleFavorite}
+                  isActive={activeSong === song.id}
+                  onClick={() => setActiveSong(song.id)}
+                />
+              </div>
             ))}
           </div>
         ) : (
-          <p className="text-center py-12 text-gray-400">
-            {searchTerm ? 'No songs found matching your search.' : 'No songs available.'}
-          </p>
+          <div className="text-gray-400 text-center py-8">
+            No songs available.
+          </div>
         )}
       </section>
-      
+
+      {/* Filters Section */}
+      <div className="flex items-center gap-4 mb-6">
+        <Select
+          value={selectedGenre}
+          onValueChange={setSelectedGenre}
+        >
+          <SelectTrigger className="w-[180px] bg-[#282828] border-none">
+            <SelectValue placeholder="Select Genre" />
+          </SelectTrigger>
+          <SelectContent>
+            {GENRES.map((genre) => (
+              <SelectItem key={genre} value={genre}>
+                {genre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="unreleased"
+            checked={showUnreleased}
+            onCheckedChange={setShowUnreleased}
+          />
+          <Label htmlFor="unreleased">Show Unreleased</Label>
+        </div>
+      </div>
+
+      {/* All Songs Section */}
+      <section className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filteredSongs.map((song) => (
+            <SongCard
+              key={song.id}
+              song={song}
+              onFavorite={handleToggleFavorite}
+              isActive={activeSong === song.id}
+              onClick={() => setActiveSong(song.id)}
+            />
+          ))}
+        </div>
+      </section>
+
       {currentSong && (
         <MusicPlayer
           currentSong={currentSong}

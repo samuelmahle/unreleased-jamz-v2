@@ -18,6 +18,8 @@ import ArchivedPage from "@/pages/ArchivedPage";
 import ArtistPage from '@/pages/ArtistPage';
 import ArtistsPage from '@/pages/ArtistsPage';
 import AboutPage from '@/pages/AboutPage';
+import { VerificationProvider } from './contexts/VerificationContext';
+import { AdminProvider } from './contexts/AdminContext';
 
 function AppRoutes() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -27,11 +29,21 @@ function AppRoutes() {
   useEffect(() => {
     const fetchSongs = async () => {
       const snapshot = await getDocs(collection(db, 'songs'));
-      const fetchedSongs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        isFavorite: currentUser ? doc.data().favoritedBy?.includes(currentUser.uid) : false
-      })) as Song[];
+      const fetchedSongs = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('Song data:', {
+          title: data.title,
+          verificationStatus: data.verificationStatus || 'pending'
+        });
+        return {
+          id: doc.id,
+          ...data,
+          isFavorite: currentUser ? data.favoritedBy?.includes(currentUser.uid) : false,
+          verificationStatus: data.verificationStatus || 'pending',
+          confirmations: data.confirmations || 0,
+          reports: data.reports || 0
+        };
+      }) as Song[];
       setSongs(fetchedSongs);
     };
 
@@ -60,49 +72,38 @@ function AppRoutes() {
   };
 
   return (
-    <>
-      <Navbar onSearch={setSearchTerm} />
-      
-      {/* Main content with padding for mobile navigation */}
-      <main className="pt-16 lg:pl-64 min-h-screen pb-16 lg:pb-0">
-        <div className="container mx-auto px-4 py-6">
-          <Routes>
-            <Route path="/" element={
-              <HomePage
-                songs={songs}
-                setSongs={setSongs}
-                searchTerm={searchTerm}
-              />
-            } />
-            <Route path="/artists" element={
-              <ArtistsPage searchTerm={searchTerm} />
-            } />
-            <Route path="/favorites" element={
-              <FavoritesPage
-                songs={songs}
-                searchTerm={searchTerm}
-              />
-            } />
-            <Route path="/upload" element={<UploadPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/song/:id" element={<SongPage />} />
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/archived" element={
-              <ArchivedPage
-                songs={songs}
-                setSongs={setSongs}
-                searchTerm={searchTerm}
-              />
-            } />
-            <Route path="/artist/:id" element={
-              <ArtistPage onFavorite={handleToggleFavorite} />
-            } />
-          </Routes>
-        </div>
-      </main>
-    </>
+    <AdminProvider>
+      <VerificationProvider>
+        <Navbar onSearch={setSearchTerm} />
+        
+        {/* Main content with padding for mobile navigation */}
+        <main className="pt-16 lg:pl-64 min-h-screen pb-16 lg:pb-0">
+          <div className="container mx-auto px-4 py-6">
+            <Routes>
+              <Route path="/" element={
+                <HomePage
+                  songs={songs}
+                  setSongs={setSongs}
+                  searchTerm={searchTerm}
+                />
+              } />
+              <Route path="/favorites" element={
+                <FavoritesPage
+                  songs={songs}
+                  searchTerm={searchTerm}
+                />
+              } />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/song/:id" element={<SongPage />} />
+              <Route path="/about" element={<AboutPage />} />
+            </Routes>
+          </div>
+        </main>
+      </VerificationProvider>
+    </AdminProvider>
   );
 }
 

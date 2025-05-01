@@ -29,6 +29,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
   const navigate = useNavigate();
   const [activeSong, setActiveSong] = useState<string | null>(null);
   const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>('all');
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
   useEffect(() => {
     if (!currentUser) {
@@ -92,18 +93,23 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
     }
   };
 
-  // Filter songs based on search and favorites
-  const favoriteSongs = songs.filter(song => 
-    userFavorites.includes(song.id) &&
-    (searchTerm === '' || 
-     song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     song.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     song.genre.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredSongs = songs
+    .filter(song => song.isFavorite)
+    .filter(song => song.verificationStatus !== 'pending') // Show all songs that have been confirmed
+    .filter(song => {
+      const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        song.artists.some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      if (selectedStatus === "all") return matchesSearch;
+      if (selectedStatus === "released") return matchesSearch && !song.isUnreleased;
+      if (selectedStatus === "unreleased") return matchesSearch && song.isUnreleased;
+      
+      return matchesSearch;
+    });
 
   // Filter and sort songs based on release status
   const now = new Date();
-  const filteredSongs = favoriteSongs
+  const filteredSongsBasedOnRelease = filteredSongs
     .filter(song => {
       const releaseDate = parseDate(song.releaseDate);
       
@@ -153,7 +159,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
         </Select>
       </div>
       
-      {filteredSongs.length === 0 ? (
+      {filteredSongsBasedOnRelease.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-xl text-muted-foreground">
             {searchTerm 
@@ -165,7 +171,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-          {filteredSongs.map((song) => (
+          {filteredSongsBasedOnRelease.map((song) => (
             <SongCard
               key={song.id}
               song={{
