@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info, Shield, CheckCircle, AlertTriangle, ListChecks } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
-import { useAdmin } from "@/contexts/AdminContext";
-import { logoutUser } from "@/lib/firebase";
+import { Button } from "./ui/button";
+import { useAuth } from "../contexts/AuthContext";
+import { useAdmin } from "../contexts/AdminContext";
+import { logoutUser } from "../lib/firebase";
 import { toast } from "sonner";
 import { SearchInput } from "./SearchInput";
 

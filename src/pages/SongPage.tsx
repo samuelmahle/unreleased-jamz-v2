@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Song } from '@/types/song';
+import { db } from '../lib/firebase';
+import { Song } from '../types/song';
 import { Heart, Share2, ArrowLeft, Flag, ThumbsUp, ThumbsDown, AlertTriangle, Edit } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useVerification } from '@/contexts/VerificationContext';
-import { getFormattedDate } from '@/lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { useVerification } from '../contexts/VerificationContext';
+import { getFormattedDate } from '../lib/utils';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 import {
   Dialog,
   DialogContent,
