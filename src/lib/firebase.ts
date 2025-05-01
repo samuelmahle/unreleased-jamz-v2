@@ -180,3 +180,48 @@ export const deleteSong = async (songId: string) => {
   const songRef = doc(db, 'songs', songId);
   await deleteDoc(songRef);
 };
+
+// Auto-verify existing songs
+export const autoVerifyExistingSongs = async () => {
+  try {
+    const songsRef = collection(db, 'songs');
+    const songsSnapshot = await getDocs(songsRef);
+    
+    const updatePromises = songsSnapshot.docs.map(async (songDoc) => {
+      const songData = songDoc.data();
+      const upvotes = songData.upvotes || [];
+      
+      // If song doesn't have 3 upvotes yet, add system upvotes
+      if (upvotes.length < 3) {
+        const systemUpvotes = ['system1', 'system2', 'system3'];
+        const neededUpvotes = systemUpvotes.slice(0, 3 - upvotes.length);
+        
+        return updateDoc(doc(db, 'songs', songDoc.id), {
+          upvotes: [...upvotes, ...neededUpvotes]
+        });
+      }
+    });
+    
+    await Promise.all(updatePromises.filter(Boolean));
+    return true;
+  } catch (error) {
+    console.error('Error auto-verifying songs:', error);
+    throw error;
+  }
+};
+
+// Archive a song
+export const archiveSong = async (songId: string) => {
+  try {
+    const songRef = doc(db, 'songs', songId);
+    await updateDoc(songRef, {
+      isArchived: true,
+      archivedAt: new Date().toISOString(),
+      archivedReason: 'Received -3 net votes'
+    });
+    return true;
+  } catch (error) {
+    console.error('Error archiving song:', error);
+    throw error;
+  }
+};

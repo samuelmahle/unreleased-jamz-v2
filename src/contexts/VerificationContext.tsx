@@ -1,16 +1,14 @@
-import React, { createContext, useContext } from 'react';
-import { useAuth } from './AuthContext';
-import { useAdmin } from './AdminContext';
-import { Song } from '@/types/song';
-import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
+import React, { createContext, useContext, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { doc, updateDoc, arrayUnion, arrayRemove, increment, getDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { toast } from 'sonner';
 
 interface VerificationContextType {
-  canConfirmSong: (song: Song) => boolean;
-  canReportSong: (song: Song) => boolean;
-  canEditSong: (song: Song) => boolean;
-  confirmSong: (songId: string) => Promise<void>;
-  reportSong: (songId: string, reportData: any) => Promise<void>;
+  verifySong: (songId: string) => Promise<void>;
+  reportSong: (songId: string, reason: string, details: string) => Promise<void>;
+  upvoteVerification: (songId: string) => Promise<void>;
+  downvoteVerification: (songId: string) => Promise<void>;
 }
 
 const VerificationContext = createContext<VerificationContextType | undefined>(undefined);
@@ -24,71 +22,124 @@ export const useVerification = () => {
 };
 
 export const VerificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, addPoints } = useAuth();
-  const { isSuperAdmin } = useAdmin();
+  const { currentUser } = useAuth();
 
-  const canConfirmSong = (song: Song) => {
-    if (!currentUser) return false;
-    if (isSuperAdmin) return true;
-    if (song.uploadedBy === currentUser.uid) return false;
-    return !song.confirmedBy?.includes(currentUser.uid);
+  const verifySong = async (songId: string) => {
+    if (!currentUser) {
+      toast.error('You must be logged in to verify songs');
+      return;
+    }
+
+    try {
+      const songRef = doc(db, 'songs', songId);
+      const userRef = doc(db, 'users', currentUser.uid);
+
+      await updateDoc(songRef, {
+        verificationStatus: 'verified',
+        verifiedBy: arrayUnion(currentUser.uid),
+        verifiedAt: new Date().toISOString()
+      });
+
+      // Add points for verification
+      await updateDoc(userRef, {
+        points: increment(200)
+      });
+
+      toast.success('Song verified successfully');
+    } catch (error) {
+      console.error('Error verifying song:', error);
+      toast.error('Failed to verify song');
+    }
   };
 
-  const canReportSong = (song: Song) => {
-    if (!currentUser) return false;
-    if (song.uploadedBy === currentUser.uid) return false;
-    return !song.reportedBy?.includes(currentUser.uid);
-  };
+  const reportSong = async (songId: string, reason: string, details: string = '') => {
+    if (!currentUser) {
+      toast.error('You must be logged in to report songs');
+      return;
+    }
 
-  const canEditSong = (song: Song) => {
-    if (!currentUser) return false;
-    if (isSuperAdmin) return true;
-    if (song.uploadedBy === currentUser.uid) return true;
-    return false;
-  };
+    try {
+      const songRef = doc(db, 'songs', songId);
+      const songDoc = await getDoc(songRef);
+      const songData = songDoc.data();
 
-  const confirmSong = async (songId: string) => {
-    if (!currentUser) throw new Error('Must be logged in to confirm songs');
+      if (!songData) {
+        throw new Error('Song not found');
+      }
 
-    const songRef = doc(db, 'songs', songId);
-    await updateDoc(songRef, {
-      confirmedBy: [...(song.confirmedBy || []), currentUser.uid],
-      verificationStatus: 'verified'
-    });
-
-    // Award points to the confirmer
-    await addPoints(10);
-  };
-
-  const reportSong = async (songId: string, reportData: any) => {
-    if (!currentUser) throw new Error('Must be logged in to report songs');
-
-    const songRef = doc(db, 'songs', songId);
-    const reportRef = collection(db, 'reports');
-
-    await Promise.all([
-      updateDoc(songRef, {
-        reportedBy: [...(song.reportedBy || []), currentUser.uid],
-        reportCount: (song.reportCount || 0) + 1
-      }),
-      addDoc(reportRef, {
-        ...reportData,
+      // Create a new report document
+      await addDoc(collection(db, 'reports'), {
         songId,
-        reportedBy: currentUser.uid,
-        timestamp: new Date()
-      })
-    ]);
+        songTitle: songData.title,
+        userId: currentUser.uid,
+        reason,
+        details,
+        status: 'pending',
+        createdAt: new Date(),
+        processedAt: null,
+        processedBy: null
+      });
 
-    // Award points for reporting
-    await addPoints(50);
+      // Update the song's report count
+      await updateDoc(songRef, {
+        reports: increment(1),
+        reportedBy: arrayUnion(currentUser.uid),
+        reportedAt: arrayUnion(new Date().toISOString())
+      });
+
+      toast.success('Song reported successfully');
+    } catch (error) {
+      console.error('Error reporting song:', error);
+      toast.error('Failed to report song');
+      throw error;
+    }
+  };
+
+  const upvoteVerification = async (songId: string) => {
+    if (!currentUser) {
+      toast.error('You must be logged in to upvote');
+      return;
+    }
+
+    try {
+      const songRef = doc(db, 'songs', songId);
+      await updateDoc(songRef, {
+        upvotes: arrayUnion(currentUser.uid),
+        downvotes: arrayRemove(currentUser.uid)
+      });
+
+      toast.success('Upvoted successfully');
+    } catch (error) {
+      console.error('Error upvoting:', error);
+      toast.error('Failed to upvote');
+    }
+  };
+
+  const downvoteVerification = async (songId: string) => {
+    if (!currentUser) {
+      toast.error('You must be logged in to downvote');
+      return;
+    }
+
+    try {
+      const songRef = doc(db, 'songs', songId);
+      await updateDoc(songRef, {
+        downvotes: arrayUnion(currentUser.uid),
+        upvotes: arrayRemove(currentUser.uid)
+      });
+
+      toast.success('Downvoted successfully');
+    } catch (error) {
+      console.error('Error downvoting:', error);
+      toast.error('Failed to downvote');
+    }
   };
 
   const value = {
-    canConfirmSong,
-    canReportSong,
-    canEditSong,
-    confirmSong,
-    reportSong
+    verifySong,
+    reportSong,
+    upvoteVerification,
+    downvoteVerification
   };
 
   return (
@@ -96,4 +147,6 @@ export const VerificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       {children}
     </VerificationContext.Provider>
   );
-}; 
+};
+
+export default VerificationContext; 

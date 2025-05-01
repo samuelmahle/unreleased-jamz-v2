@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import SongCard from "@/components/SongCard";
+import SongCard from "@/components/song-card";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { toggleFavorite } from "@/lib/firebase";

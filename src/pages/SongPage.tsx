@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Song } from '@/types/song';
+import { db } from '../lib/firebase';
+import { Song } from '../types/song';
 import { Heart, Share2, ArrowLeft, Flag, ThumbsUp, ThumbsDown, AlertTriangle, Edit } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { useVerification } from '@/contexts/VerificationContext';
-import { getFormattedDate } from '@/lib/utils';
+import { useAuth } from '../contexts/AuthContext';
+import { useVerification } from '../contexts/VerificationContext';
+import { getFormattedDate } from '../lib/utils';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -18,11 +18,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+} from "../components/ui/dialog";
+import { Input } from "../components/ui/input";
+import { RadioGroup, RadioGroupItem } from "../components/ui/radio-group";
+import { Label } from "../components/ui/label";
+import { Textarea } from "../components/ui/textarea";
+import { useAdmin } from '../contexts/AdminContext';
 
 const REPORT_REASONS = [
   { id: 'wrong_artist', label: 'Wrong Artist', description: 'The artist attribution is incorrect' },
@@ -47,7 +48,8 @@ const SongPage = () => {
   const navigate = useNavigate();
   const [song, setSong] = useState<Song | null>(null);
   const { currentUser, userFavorites } = useAuth();
-  const { canConfirmSong, canReportSong, canEditSong, confirmSong, reportSong } = useVerification();
+  const { verifySong, reportSong, upvoteVerification, downvoteVerification } = useVerification();
+  const { isAdmin, isSuperAdmin } = useAdmin();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedReportReason, setSelectedReportReason] = useState('');
   const [reportDetails, setReportDetails] = useState('');
@@ -55,6 +57,18 @@ const SongPage = () => {
   const [isDownvoteDialogOpen, setIsDownvoteDialogOpen] = useState(false);
   const [selectedDownvoteReason, setSelectedDownvoteReason] = useState('');
   const [downvoteDetails, setDownvoteDetails] = useState('');
+
+  const canEditSong = (song: Song) => {
+    if (!currentUser) return false;
+    if (isAdmin || isSuperAdmin) return true;
+    return song.uploadedBy === currentUser.uid;
+  };
+
+  const canReportSong = (song: Song) => {
+    if (!currentUser) return false;
+    if (song.uploadedBy === currentUser.uid) return false;
+    return true;
+  };
 
   useEffect(() => {
     const fetchSong = async () => {
@@ -95,43 +109,17 @@ const SongPage = () => {
   const handleUpvote = async () => {
     if (!song || !currentUser) return;
     try {
-      const songRef = doc(db, 'songs', song.id);
-      const songDoc = await getDoc(songRef);
-      const songData = songDoc.data();
-      
-      // Remove any existing downvote
-      const downvotedBy = songData?.downvotedBy?.filter((uid: string) => uid !== currentUser.uid) || [];
-      const upvotedBy = songData?.upvotedBy || [];
-      
-      // Toggle upvote
-      const hasUpvoted = upvotedBy.includes(currentUser.uid);
-      const newUpvotedBy = hasUpvoted 
-        ? upvotedBy.filter((uid: string) => uid !== currentUser.uid)
-        : [...upvotedBy, currentUser.uid];
-      
-      const netVotes = newUpvotedBy.length - downvotedBy.length;
-      const shouldVerify = netVotes >= 3;
-      
-      await updateDoc(songRef, {
-        upvotedBy: newUpvotedBy,
-        downvotedBy,
-        upvotes: newUpvotedBy.length,
-        downvotes: downvotedBy.length,
-        verificationStatus: shouldVerify ? 'verified' : 'pending'
-      });
+      await upvoteVerification(song.id);
       
       // Refresh song data
-      const updatedDoc = await getDoc(songRef);
-      setSong({
+      const updatedDoc = await getDoc(doc(db, 'songs', song.id));
+        setSong({
         ...updatedDoc.data() as Song,
         id: updatedDoc.id,
         isFavorite: userFavorites.includes(updatedDoc.id)
       });
       
-      toast.success(hasUpvoted ? 'Upvote removed' : 'Song upvoted');
-      if (shouldVerify) {
-        toast.success('Song has been verified!');
-      }
+      toast.success('Song upvoted');
     } catch (error: any) {
       toast.error(error.message || 'Failed to upvote song');
     }
@@ -144,19 +132,8 @@ const SongPage = () => {
     }
 
     try {
-      const songRef = doc(db, 'songs', song.id);
-      const songDoc = await getDoc(songRef);
-      const songData = songDoc.data();
+      await downvoteVerification(song.id);
       
-      // Remove any existing upvote
-      const upvotedBy = songData?.upvotedBy?.filter((uid: string) => uid !== currentUser.uid) || [];
-      const downvotedBy = songData?.downvotedBy || [];
-      
-      // Add downvote if not already downvoted
-      if (!downvotedBy.includes(currentUser.uid)) {
-        downvotedBy.push(currentUser.uid);
-      }
-
       // Add to admin dashboard
       const downvoteData = {
         songId: song.id,
@@ -167,22 +144,19 @@ const SongPage = () => {
         timestamp: new Date(),
       };
       
-      await Promise.all([
-        updateDoc(songRef, {
-          upvotedBy,
-          downvotedBy,
-          upvotes: upvotedBy.length,
-          downvotes: downvotedBy.length
-        }),
-        addDoc(collection(db, 'downvotes'), downvoteData)
-      ]);
+      await addDoc(collection(db, 'downvotes'), downvoteData);
       
       // Refresh song data
-      const updatedDoc = await getDoc(songRef);
+      const updatedDoc = await getDoc(doc(db, 'songs', song.id));
+      const updatedData = updatedDoc.data() as Song;
       setSong({
-        ...updatedDoc.data() as Song,
+        ...updatedData,
         id: updatedDoc.id,
-        isFavorite: userFavorites.includes(updatedDoc.id)
+        isFavorite: userFavorites.includes(updatedDoc.id),
+        downvotedBy: updatedData.downvotedBy || [],
+        upvotedBy: updatedData.upvotedBy || [],
+        downvotes: updatedData.downvotes || [],
+        upvotes: updatedData.upvotes || []
       });
       
       setIsDownvoteDialogOpen(false);
@@ -200,30 +174,14 @@ const SongPage = () => {
       return;
     }
 
-    const reportData = {
-      reason: selectedReportReason,
-      details: reportDetails.trim(),
-      timestamp: new Date(),
-    };
-
     try {
-      await reportSong(song.id, reportData);
-      toast.success('Report submitted successfully');
+      await reportSong(song.id, selectedReportReason, reportDetails.trim());
       setIsReportDialogOpen(false);
       setSelectedReportReason('');
       setReportDetails('');
-      
-      // Refresh song data to get updated report status
-      const songDoc = await getDoc(doc(db, 'songs', song.id));
-      if (songDoc.exists()) {
-        setSong({
-          ...songDoc.data() as Song,
-          id: songDoc.id,
-          isFavorite: userFavorites.includes(songDoc.id)
-        });
-      }
+      toast.success('Song reported successfully');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to submit report');
+      toast.error(error.message || 'Failed to report song');
     }
   };
 
@@ -256,15 +214,16 @@ const SongPage = () => {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <h1 className="text-2xl sm:text-3xl font-bold">{song.title}</h1>
-                {song.verificationStatus === 'pending' ? (
+                {song.verificationStatus === 'pending' && (
                   <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                    Pending • {Math.max(0, ((song.upvotes || 0) - (song.downvotes || 0)))}/3
+                    {((song.upvotes?.length || 0) - (song.downvotes?.length || 0))}/3
                   </Badge>
-                ) : song.verificationStatus === 'artist_verified' ? (
+                )}
+                {song.verificationStatus === 'artist_verified' && (
                   <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">
                     Artist Verified
                   </Badge>
-                ) : null}
+                )}
               </div>
               <p className="text-lg text-gray-300">{song.artist}</p>
             </div>
@@ -293,7 +252,7 @@ const SongPage = () => {
                     onClick={handleUpvote}
                   >
                     <ThumbsUp className="h-4 w-4 mr-2" />
-                    {song.upvotes || 0}
+                    {song.upvotes?.length || 0}
                   </Button>
                   <Button
                     variant="outline"
@@ -305,12 +264,11 @@ const SongPage = () => {
                     }`}
                     onClick={() => setIsDownvoteDialogOpen(true)}
                   >
-                    <ThumbsDown className="h-4 w-4 mr-2" />
-                    {song.downvotes || 0}
+                    <ThumbsDown className="h-4 w-4" />
                   </Button>
                 </>
               )}
-              {canReportSong(song) && (
+              {canReportSong(song) && !song.verificationStatus?.includes('pending') && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -344,29 +302,31 @@ const SongPage = () => {
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-1">
-              <Heart
-                className={`h-5 w-5 ${
-                  song.isFavorite ? "fill-music-accent text-music-accent" : "text-gray-400"
-                }`}
-              />
-              <span className="text-sm text-gray-400">
-                {song.favoritedBy?.length || 0}
-              </span>
+          {!song.verificationStatus?.includes('pending') && (
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-1">
+                <Heart
+                  className={`h-5 w-5 ${
+                    song.isFavorite ? "fill-music-accent text-music-accent" : "text-gray-400"
+                  }`}
+                />
+                <span className="text-sm text-gray-400">
+                  {song.favoritedBy?.length || 0}
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hover:bg-gray-800"
+                onClick={handleShare}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hover:bg-gray-800"
-              onClick={handleShare}
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
-          </div>
+          )}
           
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-gray-400 ml-auto">
             {getFormattedDate(song.releaseDate)}
           </span>
         </div>

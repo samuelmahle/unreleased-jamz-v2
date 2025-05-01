@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import SongCard from "@/components/SongCard";
+import SongCard from "@/components/song-card";
 import MusicPlayer from "@/components/MusicPlayer";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +19,6 @@ import { Timestamp } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 import { getRecommendedSongs } from '@/lib/recommendations';
 import { Music } from 'lucide-react';
-import { Heart } from 'lucide-react';
 
 const GENRES = [
   "All",
@@ -49,7 +48,6 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const navigate = useNavigate();
   const [recommendedSongs, setRecommendedSongs] = useState<Song[]>([]);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
-  const [showUnreleased, setShowUnreleased] = useState(true);
 
   const parseDate = (date: any): Date | null => {
     if (!date) return null;
@@ -145,11 +143,29 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   const filteredSongs = songs
     .filter(song => song.verificationStatus !== 'pending')
     .filter(song => {
-      const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.artists.some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
+      // Filter out already released songs
+      if (!showReleasingThisWeek) {
+        const releaseDate = parseDate(song.releaseDate);
+        if (releaseDate && releaseDate < new Date()) {
+          return false;
+        }
+      }
+      
+      if (!searchTerm) return true; // If no search term, show all songs
+      
+      const searchLower = searchTerm.toLowerCase();
+      const titleMatch = song.title?.toLowerCase().includes(searchLower) || false;
+      const artistMatch = song.artists?.some(artist => 
+        artist?.toLowerCase().includes(searchLower)
+      ) || false;
+      const genreMatch = song.genre?.toLowerCase().includes(searchLower) || false;
+      
+      return titleMatch || artistMatch || genreMatch;
+    })
+    .filter(song => {
       const matchesGenre = selectedGenre === "All" || song.genre === selectedGenre;
-      const matchesReleaseFilter = showUnreleased || !song.isUnreleased;
-      return matchesSearch && matchesGenre && matchesReleaseFilter;
+      const matchesReleaseFilter = !showReleasingThisWeek || isReleasingThisWeek(song.releaseDate);
+      return matchesGenre && matchesReleaseFilter;
     })
     .sort((a, b) => getRecentFavoriteCount(b) - getRecentFavoriteCount(a));
 
@@ -233,20 +249,12 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
     if (!song) return;
     
     try {
-      const newFavoriteStatus = !song.isFavorite;
-      await toggleFavorite(currentUser.uid, songId, newFavoriteStatus);
+      await toggleFavorite(currentUser.uid, songId);
       
-      // Update the songs list immediately
-      setSongs(prevSongs => 
-        prevSongs.map(s => 
-          s.id === songId 
-            ? { ...s, isFavorite: newFavoriteStatus }
-            : s
-        )
-      );
-      
+      // Let the AuthContext handle the state update
+      // The userFavorites listener in AuthContext will trigger a re-render
       toast.success(
-        newFavoriteStatus ? "Added to favorites" : "Removed from favorites",
+        song.isFavorite ? "Removed from favorites" : "Added to favorites",
         { description: `"${song.title}" by ${song.artist}` }
       );
     } catch (error) {
@@ -298,82 +306,59 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
   // Get trending songs (most favorited in the last week)
   const trendingSongs = filteredSongs
     .sort((a, b) => getRecentFavoriteCount(b) - getRecentFavoriteCount(a))
-    .slice(0, 10); // Show top 10 trending songs
+    .slice(0, 20);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="p-6">
       {/* Trending This Week Section */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-6">
-          <Music className="h-6 w-6 text-purple-500" />
-          <h2 className="text-2xl font-bold text-white">Trending This Week</h2>
-        </div>
-        
-        {trendingSongs.length > 0 ? (
-          <div className="flex overflow-x-auto space-x-4 pb-4 -mx-2 px-2">
-            {trendingSongs.map((song) => (
-              <div 
-                key={song.id} 
-                className="flex-none w-[300px] bg-[#1a1a1a] rounded-lg overflow-hidden"
-              >
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-white mb-1">{song.title}</h3>
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm text-gray-400">
-                      {song.artists.join(', ')}
-                    </p>
-                    <span className="px-2 py-0.5 text-xs bg-[#282828] rounded-full text-gray-300">
-                      {song.genre}
-                    </span>
-                  </div>
-                  
-                  {/* SoundCloud Preview */}
-                  <div className="relative aspect-[16/9] bg-[#282828] rounded-md mb-3">
-                    {song.soundCloudUrl ? (
-                      <iframe
-                        src={`${song.soundCloudUrl}&color=%23FF5500&auto_play=false&hide_related=true&show_comments=false&show_user=false&show_reposts=false&show_teaser=false`}
-                        width="100%"
-                        height="100%"
-                        frameBorder="0"
-                        allow="autoplay"
-                        className="absolute inset-0 w-full h-full rounded-md"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-gray-500">
-                        Preview not available
-                      </div>
-                    )}
-                  </div>
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Music className="h-6 w-6 text-purple-500" />
+            <h2 className="text-2xl font-bold text-white">Trending This Week</h2>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="releasing"
+                checked={showReleasingThisWeek}
+                onCheckedChange={setShowReleasingThisWeek}
+                className="data-[state=checked]:bg-purple-500"
+              />
+              <Label htmlFor="releasing" className="text-gray-200 font-medium">
+                Releasing This Week
+              </Label>
+            </div>
 
-                  {/* Bottom Row */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleToggleFavorite(song.id)}
-                        className="text-gray-400 hover:text-white transition-colors"
-                      >
-                        <Heart
-                          className={`h-5 w-5 ${song.isFavorite ? 'fill-purple-500 text-purple-500' : ''}`}
-                        />
-                      </button>
-                      <span className="text-sm text-gray-400">
-                        {song.favoritedBy?.length || 0}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {song.releaseDate ? (
-                        isReleasingThisWeek(song.releaseDate) ? 
-                          'Release date unknown' : 
-                          new Date(song.releaseDate).toLocaleDateString('en-US', { 
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })
-                      ) : 'Release date unknown'}
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <Select
+              value={selectedGenre}
+              onValueChange={setSelectedGenre}
+            >
+              <SelectTrigger className="w-[180px] bg-[#1a1a1a] border-[#383838] focus:ring-purple-500 focus:ring-offset-0">
+                <SelectValue placeholder="Select Genre" />
+              </SelectTrigger>
+              <SelectContent>
+                {GENRES.map((genre) => (
+                  <SelectItem key={genre} value={genre}>
+                    {genre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {trendingSongs.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {trendingSongs.map((song) => (
+              <SongCard
+                key={song.id}
+                song={song}
+                onFavorite={handleToggleFavorite}
+                isActive={activeSong === song.id}
+                onClick={() => setActiveSong(song.id)}
+              />
             ))}
           </div>
         ) : (
@@ -381,57 +366,15 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
             No songs available.
           </div>
         )}
-      </div>
-
-      {/* Filters Section */}
-      <div className="flex items-center gap-4 mb-6">
-        <Select
-          value={selectedGenre}
-          onValueChange={setSelectedGenre}
-        >
-          <SelectTrigger className="w-[180px] bg-[#282828] border-none">
-            <SelectValue placeholder="Select Genre" />
-          </SelectTrigger>
-          <SelectContent>
-            {GENRES.map((genre) => (
-              <SelectItem key={genre} value={genre}>
-                {genre}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="unreleased"
-            checked={showUnreleased}
-            onCheckedChange={setShowUnreleased}
-          />
-          <Label htmlFor="unreleased">Show Unreleased</Label>
-        </div>
-      </div>
-
-      {/* All Songs Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filteredSongs.map((song) => (
-          <SongCard
-            key={song.id}
-            song={song}
-            onPlay={() => playSong(song)}
-            onToggleFavorite={() => handleToggleFavorite(song.id)}
-            isPlaying={currentSong?.id === song.id && isPlaying}
-            isFavorite={song.isFavorite}
-          />
-        ))}
-      </div>
+      </section>
 
       {currentSong && (
         <MusicPlayer
-          song={currentSong}
+          currentSong={currentSong}
           isPlaying={isPlaying}
           onPlayPause={handlePlayPause}
-          onPrevious={handlePrevious}
           onNext={handleNext}
+          onPrevious={handlePrevious}
         />
       )}
     </div>
@@ -439,3 +382,4 @@ const HomePage: React.FC<HomePageProps> = ({ songs = [], setSongs, searchTerm })
 };
 
 export default HomePage;
+

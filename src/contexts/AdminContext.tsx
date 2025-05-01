@@ -44,8 +44,8 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Check if user is regular admin
       const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
       const userData = userDoc.data();
-      setIsAdmin(userData?.role === 'admin');
-      setIsSuperAdmin(false);
+      setIsAdmin(userData?.role === 'admin' || userData?.role === 'super_admin');
+      setIsSuperAdmin(userData?.role === 'super_admin');
     };
 
     checkAdminStatus();
@@ -64,4 +64,6 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
     </AdminContext.Provider>
   );
-}; 
+};
+
+export default AdminContext; 

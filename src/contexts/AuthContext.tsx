@@ -10,8 +10,10 @@ import {
   getAuth,
   sendPasswordResetEmail
 } from "firebase/auth";
-import { app, db } from "@/lib/firebase";
-import { doc, getDoc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
+import { app, db, loginUser, logoutUser, ensureSuperAdmin } from "@/lib/firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { UserRole } from "@/types/user";
+import { toast } from "sonner";
 
 interface UserProfile {
   username: string;
@@ -21,6 +23,8 @@ interface UserProfile {
   createdAt: string;
   isArtist: boolean;
   isVerified: boolean;
+  role: UserRole;
+  points: number;
   bio?: string;
   socialLinks?: {
     instagram?: string;
@@ -30,28 +34,23 @@ interface UserProfile {
   };
   followers: string[];
   following: string[];
+  favorites?: string[];
 }
 
 interface AuthUser extends User {
   profileData?: UserProfile;
-  points?: number;
-  role?: 'user' | 'verified_contributor' | 'admin' | 'super_admin';
-  favorites?: string[];
 }
 
 interface AuthContextType {
   currentUser: AuthUser | null;
   auth: Auth;
   userFavorites: string[];
-  userPoints: number;
-  userRole: string;
   register: (email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   sendVerificationEmail: (user: User) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  toggleFavorite: (songId: string) => Promise<void>;
-  addPoints: (amount: number) => Promise<void>;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -67,8 +66,6 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
-  const [userPoints, setUserPoints] = useState(0);
-  const [userRole, setUserRole] = useState('user');
   const [loading, setLoading] = useState(true);
   const auth = getAuth(app);
 
@@ -86,16 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           followers: userData.followers?.length || 0,
           favorites: userData.favorites?.length || 0
         });
-        const authUser: AuthUser = Object.assign(user, { 
-          profileData: userData,
-          points: userData.points || 0,
-          role: userData.role || 'user',
-          favorites: userData.favorites || []
-        });
+        const authUser: AuthUser = Object.assign(user, { profileData: userData });
         setCurrentUser(authUser);
-        setUserFavorites(userData.favorites || []);
-        setUserPoints(userData.points || 0);
-        setUserRole(userData.role || 'user');
       } else {
         console.log('No user profile document exists');
         setCurrentUser(user);
@@ -113,11 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await loadUserProfile(user);
       } else {
         setCurrentUser(null);
-        setUserFavorites([]);
-        setUserPoints(0);
-        setUserRole('user');
       }
       setLoading(false);
+      
+      // Ensure super admin status when user logs in
+      if (user && user.email === 'sam18mahle@gmail.com') {
+        ensureSuperAdmin(user.uid, user.email)
+          .catch(error => console.error('Error ensuring super admin:', error));
+      }
     });
 
     return unsubscribe;
@@ -140,54 +132,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           favorites: userData.favorites?.length || 0,
           following: userData.following?.length || 0
         });
-        setUserFavorites(doc.data().favorites || []);
+        
+        // Ensure favorites is always an array
+        const favorites = Array.isArray(userData.favorites) ? userData.favorites : [];
+        setUserFavorites(favorites);
+        
         // Update profile data when it changes
         const updatedUser: AuthUser = Object.assign({}, currentUser, { 
-          profileData: userData,
-          points: userData.points || 0,
-          role: userData.role || 'user',
-          favorites: userData.favorites || []
+          profileData: {
+            ...userData,
+            favorites: favorites
+          }
         });
         setCurrentUser(updatedUser);
-        setUserPoints(userData.points || 0);
-        setUserRole(userData.role || 'user');
       } else {
         console.log('No user document exists');
         setUserFavorites([]);
       }
+    }, (error) => {
+      console.error('Error in user data listener:', error);
+      toast.error('Failed to sync favorites');
     });
 
     return () => unsubscribe();
   }, [currentUser?.uid]);
 
   const register = async (email: string, password: string) => {
-    const { user } = await createUserWithEmailAndPassword(auth, email, password);
-    await setDoc(doc(db, 'users', user.uid), {
-      email: user.email,
-      points: 0,
-      role: 'user',
-      favorites: [],
-      createdAt: new Date()
-    });
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    await sendEmailVerification(userCredential.user);
   };
 
   const login = async (email: string, password: string) => {
-    const { user } = await signInWithEmailAndPassword(auth, email, password);
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    
-    if (!userDoc.exists()) {
-      await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
-        points: 0,
-        role: 'user',
-        favorites: [],
-        createdAt: new Date()
-      });
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password);
+      if (result.user.email === 'sam18mahle@gmail.com') {
+        await ensureSuperAdmin(result.user.uid, result.user.email);
+      }
+      toast.success('Successfully logged in!');
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Failed to log in');
+      throw error;
     }
   };
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+      toast.success('Successfully logged out!');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out');
+      throw error;
+    }
   };
 
   const sendVerificationEmail = async (user: User) => {
@@ -198,59 +195,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await sendPasswordResetEmail(auth, email);
   };
 
-  const toggleFavorite = async (songId: string) => {
-    if (!currentUser) throw new Error('Must be logged in to favorite songs');
-
-    const userRef = doc(db, 'users', currentUser.uid);
-    const isFavorited = userFavorites.includes(songId);
-
-    if (isFavorited) {
-      await updateDoc(userRef, {
-        favorites: arrayRemove(songId)
-      });
-      setUserFavorites(prev => prev.filter(id => id !== songId));
-    } else {
-      await updateDoc(userRef, {
-        favorites: arrayUnion(songId)
-      });
-      setUserFavorites(prev => [...prev, songId]);
-    }
-
-    return !isFavorited;
-  };
-
-  const addPoints = async (amount: number) => {
-    if (!currentUser) return;
-
-    const newPoints = userPoints + amount;
-    const userRef = doc(db, 'users', currentUser.uid);
-    
-    await updateDoc(userRef, {
-      points: newPoints
-    });
-    
-    setUserPoints(newPoints);
-
-    // Check for role upgrades based on points
-    if (newPoints >= 1000 && userRole === 'user') {
-      await updateDoc(userRef, { role: 'verified_contributor' });
-      setUserRole('verified_contributor');
-    }
-  };
-
   const value = {
     currentUser,
     auth,
     userFavorites,
-    userPoints,
-    userRole,
     register,
     login,
     logout,
     sendVerificationEmail,
     resetPassword,
-    toggleFavorite,
-    addPoints
+    loading
   };
 
   return (

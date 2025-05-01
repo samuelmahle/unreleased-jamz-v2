@@ -1,9 +1,12 @@
+import { VerificationStatus } from './user';
+
 export interface Song {
   id: string;
   title: string;
   artist: string;
-  artists: string[];
-  artistIds: string[];
+  artists?: string[];
+  artistIds?: string[];
+  userId: string;
   genre: string;
   releaseDate: string | null;
   audioUrl?: string;
@@ -13,9 +16,27 @@ export interface Song {
   isFavorite: boolean;
   uploadDate: string;
   createdAt?: string;
-  favoritedBy: string[];
-  favoritedAt: string[];
+  favoritedBy?: string[];
+  favoritedAt?: Date[];
   favoriteCount: number;
   updatedAt: string;
-  userId: string;
+  verificationStatus: VerificationStatus;
+  confirmations: number;
+  confirmedBy: string[];
+  confirmedAt: Date[];
+  reports: number;
+  reportedBy: string[];
+  reportedAt: Date[];
+  submittedBy: string;
+  submittedAt: Date;
+  lastEditedBy?: string;
+  lastEditedAt?: Date;
+  version: number;
+  notes?: string;
+  isHidden: boolean;
+  hiddenReason?: string;
+  hiddenBy?: string;
+  hiddenAt?: Date;
+  upvotes: string[];
+  downvotes: string[];
 }

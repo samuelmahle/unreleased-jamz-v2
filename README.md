@@ -1,106 +1,69 @@
-# MIDI to Audio Generator
+# Welcome to your Lovable project
 
-This project uses Meta's AudioGen model to generate audio tracks based on MIDI input. It analyzes MIDI files for musical features and generates appropriate prompts for AudioGen to create corresponding audio output.
+## Project info
 
-## Features
+**URL**: https://lovable.dev/projects/56ae16ef-8746-493c-b34b-87cf25c61ff0
 
-- MIDI file analysis (tempo, key, harmony, rhythm)
-- Musical feature extraction
-- Intelligent prompt generation for AudioGen
-- Audio generation with customizable parameters
-- Support for multiple output variations
+## How can I edit this code?
 
-## Installation
+There are several ways of editing your application.
 
-1. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+**Use Lovable**
+
+Simply visit the [Lovable Project](https://lovable.dev/projects/56ae16ef-8746-493c-b34b-87cf25c61ff0) and start prompting.
+
+Changes made via Lovable will be committed automatically to this repo.
+
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
+npm run dev
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+**Edit a file directly in GitHub**
 
-## Usage
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-Basic usage:
+**Use GitHub Codespaces**
 
-```python
-from src.midi_to_audio import MidiToAudioGenerator
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-# Initialize generator
-generator = MidiToAudioGenerator()
+## What technologies are used for this project?
 
-# Convert MIDI to audio
-generator.midi_to_audio(
-    midi_path="input.mid",
-    output_path="output.wav"
-)
-```
+This project is built with .
 
-Advanced usage with custom prompt:
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-```python
-from src.midi_processor import MidiProcessor
-from src.prompt_generator import PromptGenerator
+## How can I deploy this project?
 
-# Initialize components
-processor = MidiProcessor()
-prompt_gen = PromptGenerator()
+Simply open [Lovable](https://lovable.dev/projects/56ae16ef-8746-493c-b34b-87cf25c61ff0) and click on Share -> Publish.
 
-# Extract features
-features = processor.extract_features("input.mid")
+## I want to use a custom domain - is that possible?
 
-# Generate custom prompt
-prompt = prompt_gen.generate_prompt(
-    features,
-    template="Create a {genre} track with {instruments} at {tempo} tempo"
-)
-
-# Generate variations
-variations = prompt_gen.generate_variations(prompt, n_variations=3)
-```
-
-## Project Structure
-
-```
-.
-├── src/
-│   ├── midi_to_audio.py     # Main module
-│   ├── midi_processor.py    # MIDI analysis
-│   └── prompt_generator.py  # Prompt generation
-├── tests/                   # Test files
-├── data/                    # Sample MIDI files
-├── requirements.txt         # Dependencies
-└── README.md               # Documentation
-```
-
-## Dependencies
-
-- torch
-- torchaudio
-- audiocraft
-- midiutil
-- python-midi
-- numpy
-- soundfile
-- tqdm
-- transformers
-
-## TODO
-
-- [ ] Implement complete MIDI parsing and feature extraction
-- [ ] Add more sophisticated harmonic analysis
-- [ ] Improve genre and mood detection
-- [ ] Add support for batch processing
-- [ ] Implement more advanced prompt variation generation
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
