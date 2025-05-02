@@ -1,5 +1,4 @@
 import React from "react";
-<<<<<<< Updated upstream:src/components/SongCard.tsx
 import { useAuth } from '../contexts/AuthContext';
 import { format } from "date-fns";
 import { Heart, Share2 } from "lucide-react";
@@ -12,18 +11,7 @@ import {
 } from "../components/ui/tooltip";
 import { toast } from "sonner";
 import { Song } from "../types/song";
-import { Timestamp } from "firebase/firestore"; // 👈 Added this import
-=======
-import { useAuth } from '@/contexts/AuthContext';
-import { format } from "date-fns";
-import { ThumbsUp, ThumbsDown, Heart, Share2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { Song } from "@/types/song";
-import { Timestamp } from "firebase/firestore";
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
->>>>>>> Stashed changes:src/components/song-card/index.tsx
+import { Timestamp } from "firebase/firestore"; // �� Added this import
 
 const isValidSoundCloudUrl = (url: string | null): boolean => {
   if (!url) return false;
@@ -112,10 +100,7 @@ const SongCard: React.FC<SongCardProps> = ({
       });
       return;
     }
-<<<<<<< Updated upstream:src/components/SongCard.tsx
     onFavorite(song.id);
-=======
-    onUpvote?.(song.id);
   };
 
   const handleDownvote = (e: React.MouseEvent) => {
@@ -131,7 +116,6 @@ const SongCard: React.FC<SongCardProps> = ({
       return;
     }
     onDownvote?.(song.id);
->>>>>>> Stashed changes:src/components/song-card/index.tsx
   };
 
   const handleShare = async (e: React.MouseEvent) => {
@@ -249,55 +233,6 @@ const SongCard: React.FC<SongCardProps> = ({
       
         {/* Bottom Section */}
         <div className="flex items-center justify-between mt-auto">
-<<<<<<< Updated upstream:src/components/SongCard.tsx
-          <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                    className="group/btn flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-gray-800 transition-colors"
-                  onClick={handleFavorite}
-                >
-                  <Heart
-                      className={`h-4 w-4 ${
-                        song.isFavorite 
-                          ? "fill-music-accent text-music-accent" 
-                          : "text-gray-400 group-hover/btn:text-white"
-                    }`}
-                  />
-                    <span className="text-xs text-gray-400 group-hover/btn:text-white">
-                    {formatFavoriteCount(song.favoritedBy?.length || 0)}
-                  </span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{song.isFavorite ? "Remove from favorites" : "Add to favorites"}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button 
-                    className="p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
-                  onClick={handleShare}
-                >
-                    <Share2 className="h-4 w-4 text-gray-400 hover:text-white" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Copy share link</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-
-          <span className="text-xs text-gray-500">
-          {getFormattedDate(song.releaseDate)}
-        </span>
-        </div>
-=======
           <div className="flex items-center gap-4">
             {/* Voting Buttons */}
             {showVerificationStatus ? (
@@ -366,7 +301,6 @@ const SongCard: React.FC<SongCardProps> = ({
             {getFormattedDate(song.releaseDate)}
           </span>
         </div>
->>>>>>> Stashed changes:src/components/song-card/index.tsx
       </div>
     </div>
   );

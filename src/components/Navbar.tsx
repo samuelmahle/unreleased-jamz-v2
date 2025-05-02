@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info, Shield, CheckCircle, AlertTriangle, ListChecks } from "lucide-react";
+import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info, Shield, CheckCircle, AlertTriangle, ListChecks, Edit } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../contexts/AuthContext";
 import { useAdmin } from "../contexts/AdminContext";
@@ -153,14 +153,27 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                   </p>
                 </div>
 
-                <Link to="/reports">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
-                  >
-                    <AlertTriangle className="mr-2 h-5 w-5" />
-                    Reports
-                  </Button>
+                <Link
+                  to="/reports"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    location.pathname === '/reports'
+                      ? 'bg-music text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Reports</span>
+                </Link>
+                <Link
+                  to="/edit-suggestions"
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    location.pathname === '/edit-suggestions'
+                      ? 'bg-music text-white'
+                      : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                  }`}
+                >
+                  <Edit className="h-4 w-4" />
+                  <span>Edit Suggestions</span>
                 </Link>
               </>
             )}

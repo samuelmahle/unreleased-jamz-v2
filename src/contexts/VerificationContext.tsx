@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { doc, updateDoc, arrayUnion, arrayRemove, increment, getDoc, addDoc, collection } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db } from '../lib/firebase';
 import { toast } from 'sonner';
 
 interface VerificationContextType {
@@ -68,7 +68,7 @@ export const VerificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       // Create a new report document
-      await addDoc(collection(db, 'reports'), {
+      const reportData = {
         songId,
         songTitle: songData.title,
         userId: currentUser.uid,
@@ -78,7 +78,11 @@ export const VerificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         createdAt: new Date(),
         processedAt: null,
         processedBy: null
-      });
+      };
+
+      console.log('Creating report with data:', reportData);
+      const reportRef = await addDoc(collection(db, 'reports'), reportData);
+      console.log('Report created with ID:', reportRef.id);
 
       // Update the song's report count
       await updateDoc(songRef, {
@@ -103,12 +107,49 @@ export const VerificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
     try {
       const songRef = doc(db, 'songs', songId);
-      await updateDoc(songRef, {
-        upvotes: arrayUnion(currentUser.uid),
-        downvotes: arrayRemove(currentUser.uid)
-      });
+      const songDoc = await getDoc(songRef);
+      const songData = songDoc.data();
 
-      toast.success('Upvoted successfully');
+      if (!songData) {
+        throw new Error('Song not found');
+      }
+
+      // Get current upvotes and downvotes
+      const currentUpvotes = songData.upvotes || [];
+      const currentDownvotes = songData.downvotes || [];
+
+      // Check if user has already upvoted
+      if (currentUpvotes.includes(currentUser.uid)) {
+        toast.error('You have already upvoted this song');
+        return;
+      }
+
+      // Add user to upvotes and remove from downvotes
+      const newUpvotes = [...currentUpvotes, currentUser.uid];
+      const newDownvotes = currentDownvotes.filter(id => id !== currentUser.uid);
+
+      // Calculate net votes
+      const netVotes = newUpvotes.length - newDownvotes.length;
+
+      // Update song document
+      const updateData: any = {
+        upvotes: newUpvotes,
+        downvotes: newDownvotes
+      };
+
+      // If net votes reaches 3, update verification status
+      if (netVotes >= 3 && songData.verificationStatus === 'pending') {
+        updateData.verificationStatus = 'verified';
+        updateData.verifiedAt = new Date().toISOString();
+      }
+
+      await updateDoc(songRef, updateData);
+
+      if (netVotes >= 3 && songData.verificationStatus === 'pending') {
+        toast.success('Song has been verified!');
+      } else {
+        toast.success('Upvoted successfully');
+      }
     } catch (error) {
       console.error('Error upvoting:', error);
       toast.error('Failed to upvote');

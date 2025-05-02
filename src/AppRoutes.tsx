@@ -22,6 +22,9 @@ import PendingSongsPage from '@/pages/PendingSongsPage';
 import ReportsPage from '@/pages/ReportsPage';
 import { VerificationProvider } from '@/contexts/VerificationContext';
 import { AdminProvider } from '@/contexts/AdminContext';
+import EditSongPage from '@/pages/EditSongPage';
+import SuggestEditPage from '@/pages/SuggestEditPage';
+import EditSuggestionsPage from '@/pages/EditSuggestionsPage';
 
 function AppRoutes() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -102,9 +105,12 @@ function AppRoutes() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/song/:id" element={<SongPage />} />
+              <Route path="/songs/:id/edit" element={<EditSongPage />} />
+              <Route path="/songs/:id/suggest-edit" element={<SuggestEditPage />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/pending" element={<PendingSongsPage songs={songs} searchTerm={searchTerm} />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/edit-suggestions" element={<EditSuggestionsPage />} />
               <Route path="/artists/:id" element={<ArtistPage onFavorite={handleToggleFavorite} />} />
             </Routes>
           </div>

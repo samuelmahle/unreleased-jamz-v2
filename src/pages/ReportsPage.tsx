@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, where, getDocs, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAdmin } from '../contexts/AdminContext';
 import { AlertTriangle, Check, X } from 'lucide-react';
@@ -14,16 +14,17 @@ interface Report {
   songTitle: string;
   reason: string;
   details: string;
-  createdAt: any;
+  createdAt: Timestamp;
   userId: string;
   status: 'pending' | 'resolved' | 'rejected';
-  processedAt: any;
+  processedAt: Timestamp | null;
   processedBy: string | null;
 }
 
 const ReportsPage = () => {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { isAdmin } = useAdmin();
   const navigate = useNavigate();
 
@@ -34,22 +35,31 @@ const ReportsPage = () => {
     }
 
     const fetchReports = async () => {
+      setLoading(true);
+      setError(null);
       try {
+        console.log('Fetching reports...');
         const reportsQuery = query(
           collection(db, 'reports'),
-          where('status', '==', 'pending'),
-          orderBy('createdAt', 'desc')
+          where('status', '==', 'pending')
         );
 
         const snapshot = await getDocs(reportsQuery);
+        console.log('Reports snapshot:', snapshot.size, 'documents');
+        
         const fetchedReports = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         })) as Report[];
 
+        // Sort reports by createdAt client-side
+        fetchedReports.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+
+        console.log('Fetched reports:', fetchedReports);
         setReports(fetchedReports);
       } catch (error) {
         console.error('Error fetching reports:', error);
+        setError('Failed to load reports');
         toast.error('Failed to load reports');
       } finally {
         setLoading(false);
@@ -87,6 +97,16 @@ const ReportsPage = () => {
       <div className="p-6">
         <div className="text-center py-8">
           Loading reports...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-8 text-red-500">
+          {error}
         </div>
       </div>
     );

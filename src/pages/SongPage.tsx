@@ -113,10 +113,15 @@ const SongPage = () => {
       
       // Refresh song data
       const updatedDoc = await getDoc(doc(db, 'songs', song.id));
-        setSong({
-        ...updatedDoc.data() as Song,
+      const updatedData = updatedDoc.data() as Song;
+      setSong({
+        ...updatedData,
         id: updatedDoc.id,
-        isFavorite: userFavorites.includes(updatedDoc.id)
+        isFavorite: userFavorites.includes(updatedDoc.id),
+        downvotedBy: updatedData.downvotedBy || [],
+        upvotedBy: updatedData.upvotedBy || [],
+        downvotes: updatedData.downvotes || [],
+        upvotes: updatedData.upvotes || []
       });
       
       toast.success('Song upvoted');
@@ -181,6 +186,7 @@ const SongPage = () => {
       setReportDetails('');
       toast.success('Song reported successfully');
     } catch (error: any) {
+      console.error('Error reporting song:', error);
       toast.error(error.message || 'Failed to report song');
     }
   };
@@ -219,11 +225,6 @@ const SongPage = () => {
                     {((song.upvotes?.length || 0) - (song.downvotes?.length || 0))}/3
                   </Badge>
                 )}
-                {song.verificationStatus === 'artist_verified' && (
-                  <Badge variant="default" className="bg-purple-600 hover:bg-purple-700">
-                    Artist Verified
-                  </Badge>
-                )}
               </div>
               <p className="text-lg text-gray-300">{song.artist}</p>
             </div>
@@ -234,6 +235,17 @@ const SongPage = () => {
                   size="sm"
                   className="text-blue-500 border-blue-500 hover:bg-blue-500/10"
                   onClick={() => navigate(`/songs/${song.id}/edit`)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+              )}
+              {currentUser && !canEditSong(song) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-purple-500 border-purple-500 hover:bg-purple-500/10"
+                  onClick={() => navigate(`/songs/${song.id}/suggest-edit`)}
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit
@@ -268,7 +280,7 @@ const SongPage = () => {
                   </Button>
                 </>
               )}
-              {canReportSong(song) && !song.verificationStatus?.includes('pending') && (
+              {canReportSong(song) && song.verificationStatus !== 'pending' && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -302,7 +314,7 @@ const SongPage = () => {
         </div>
 
         <div className="flex items-center justify-between">
-          {!song.verificationStatus?.includes('pending') && (
+          {song.verificationStatus !== 'pending' && (
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
                 <Heart
