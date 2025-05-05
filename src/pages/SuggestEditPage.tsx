@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
+import { useVerification } from '../contexts/VerificationContext';
 
 const GENRES = [
   "Electronic",
@@ -31,6 +32,7 @@ const SuggestEditPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { proposeEdit } = useVerification();
   const [song, setSong] = useState<Song | null>(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -50,7 +52,7 @@ const SuggestEditPage = () => {
         const songDoc = await getDoc(doc(db, 'songs', id));
         if (songDoc.exists()) {
           const songData = songDoc.data() as Song;
-          setSong(songData);
+          setSong({ ...songData, id: songDoc.id });
           setFormData({
             title: songData.title,
             artist: songData.artist,
@@ -84,10 +86,13 @@ const SuggestEditPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentUser || !song) return;
+    if (!currentUser || !song || !song.id) {
+      toast.error('Song ID is missing. Cannot submit edit suggestion.');
+      return;
+    }
 
     console.log('Submitting edit suggestion', {
-      songId: id,
+      songId: song.id,
       originalSong: {
         title: song.title,
         artist: song.artist,
@@ -127,7 +132,7 @@ const SuggestEditPage = () => {
       });
 
       toast.success('Edit suggestion submitted successfully');
-      navigate(`/song/${id}`);
+      setTimeout(() => navigate(`/song/${song.id}`), 600);
     } catch (error) {
       console.error('Error submitting edit suggestion:', error);
       toast.error('Failed to submit edit suggestion');
