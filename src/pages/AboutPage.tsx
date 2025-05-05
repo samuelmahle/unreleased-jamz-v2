@@ -11,7 +11,7 @@ const AboutPage = () => {
       
       <div className="prose prose-invert mx-auto">
         <p className="text-lg leading-relaxed text-gray-300">
-          The idea for Setlisted came one night while a few friends were digging through YouTube sets, searching for old IDs. Our goal is to create a space where music enthusiasts can discover, track, and celebrate their favorite unreleased tracks. Untz untz on
+          The idea for Setlisted came one night while a few friends were digging through YouTube sets, searching for old IDs. Our goal is to create a space where music enthusiasts can discover, track, and celebrate their favorite unreleased tracks. Untz untz on :)
         </p>
         
         <p className="text-gray-400 mt-8 text-right italic">
