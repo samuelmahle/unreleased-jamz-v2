@@ -10,9 +10,9 @@ import {
   getAuth,
   sendPasswordResetEmail
 } from "firebase/auth";
-import { app, db, loginUser, logoutUser, ensureSuperAdmin } from "@/lib/firebase";
+import { app, db, loginUser, logoutUser, ensureSuperAdmin } from "../lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { UserRole } from "@/types/user";
+import { UserRole } from "../types/user";
 import { toast } from "sonner";
 
 interface UserProfile {
@@ -178,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await signOut(auth);
+    await signOut(auth);
       toast.success('Successfully logged out!');
     } catch (error) {
       console.error('Logout error:', error);

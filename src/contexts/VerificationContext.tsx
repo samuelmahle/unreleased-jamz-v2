@@ -9,6 +9,7 @@ interface VerificationContextType {
   reportSong: (songId: string, reason: string, details: string) => Promise<void>;
   upvoteVerification: (songId: string) => Promise<void>;
   downvoteVerification: (songId: string) => Promise<void>;
+  proposeEdit: (songId: string, updates: any, notes: string, originalSong: any) => Promise<void>;
 }
 
 const VerificationContext = createContext<VerificationContextType | undefined>(undefined);
@@ -176,11 +177,37 @@ export const VerificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
   };
 
+  const proposeEdit = async (songId: string, updates: any, notes: string, originalSong: any) => {
+    if (!currentUser) {
+      toast.error('You must be logged in to propose an edit');
+      return;
+    }
+    try {
+      await addDoc(collection(db, 'editSuggestions'), {
+        songId,
+        originalSong,
+        suggestedChanges: updates,
+        reason: notes,
+        status: 'pending',
+        submittedBy: currentUser.uid,
+        submittedAt: new Date().toISOString(),
+        reviewedBy: null,
+        reviewedAt: null,
+        reviewNotes: null
+      });
+      toast.success('Edit suggestion submitted successfully');
+    } catch (error) {
+      console.error('Error submitting edit suggestion:', error);
+      toast.error('Failed to submit edit suggestion');
+    }
+  };
+
   const value = {
     verifySong,
     reportSong,
     upvoteVerification,
-    downvoteVerification
+    downvoteVerification,
+    proposeEdit
   };
 
   return (

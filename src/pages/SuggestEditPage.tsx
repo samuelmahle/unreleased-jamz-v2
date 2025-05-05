@@ -86,31 +86,44 @@ const SuggestEditPage = () => {
     e.preventDefault();
     if (!currentUser || !song) return;
 
+    console.log('Submitting edit suggestion', {
+      songId: id,
+      originalSong: {
+        title: song.title,
+        artist: song.artist,
+        genre: song.genre,
+        releaseDate: song.releaseDate,
+        soundcloudUrl: song.soundcloudUrl
+      },
+      suggestedChanges: {
+        title: formData.title,
+        artist: formData.artist,
+        genre: formData.genre,
+        releaseDate: formData.releaseDate ? new Date(formData.releaseDate).toISOString() : null,
+        soundcloudUrl: formData.soundcloudUrl
+      },
+      reason: formData.reason,
+      status: 'pending',
+      submittedBy: currentUser.uid,
+      submittedAt: new Date().toISOString(),
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNotes: null
+    });
+
     try {
-      // Create edit suggestion
-      await addDoc(collection(db, 'editSuggestions'), {
-        songId: id,
-        originalSong: {
-          title: song.title,
-          artist: song.artist,
-          genre: song.genre,
-          releaseDate: song.releaseDate,
-          soundcloudUrl: song.soundcloudUrl
-        },
-        suggestedChanges: {
-          title: formData.title,
-          artist: formData.artist,
-          genre: formData.genre,
-          releaseDate: formData.releaseDate ? new Date(formData.releaseDate).toISOString() : null,
-          soundcloudUrl: formData.soundcloudUrl
-        },
-        reason: formData.reason,
-        status: 'pending',
-        submittedBy: currentUser.uid,
-        submittedAt: new Date().toISOString(),
-        reviewedBy: null,
-        reviewedAt: null,
-        reviewNotes: null
+      await proposeEdit(song.id, {
+        title: formData.title,
+        artist: formData.artist,
+        genre: formData.genre,
+        releaseDate: formData.releaseDate ? new Date(formData.releaseDate).toISOString() : null,
+        soundcloudUrl: formData.soundcloudUrl
+      }, formData.reason, {
+        title: song.title,
+        artist: song.artist,
+        genre: song.genre,
+        releaseDate: song.releaseDate,
+        soundcloudUrl: song.soundcloudUrl
       });
 
       toast.success('Edit suggestion submitted successfully');

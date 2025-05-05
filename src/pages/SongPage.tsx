@@ -114,7 +114,7 @@ const SongPage = () => {
       // Refresh song data
       const updatedDoc = await getDoc(doc(db, 'songs', song.id));
       const updatedData = updatedDoc.data() as Song;
-      setSong({
+        setSong({
         ...updatedData,
         id: updatedDoc.id,
         isFavorite: userFavorites.includes(updatedDoc.id),
@@ -315,27 +315,27 @@ const SongPage = () => {
 
         <div className="flex items-center justify-between">
           {song.verificationStatus !== 'pending' && (
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-1">
-                <Heart
-                  className={`h-5 w-5 ${
-                    song.isFavorite ? "fill-music-accent text-music-accent" : "text-gray-400"
-                  }`}
-                />
-                <span className="text-sm text-gray-400">
-                  {song.favoritedBy?.length || 0}
-                </span>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="hover:bg-gray-800"
-                onClick={handleShare}
-              >
-                <Share2 className="h-4 w-4 mr-2" />
-                Share
-              </Button>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-1">
+              <Heart
+                className={`h-5 w-5 ${
+                  song.isFavorite ? "fill-music-accent text-music-accent" : "text-gray-400"
+                }`}
+              />
+              <span className="text-sm text-gray-400">
+                {Object.keys(song.favorites || {}).length}
+              </span>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hover:bg-gray-800"
+              onClick={handleShare}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+          </div>
           )}
           
           <span className="text-sm text-gray-400 ml-auto">

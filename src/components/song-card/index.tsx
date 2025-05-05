@@ -282,7 +282,9 @@ const SongCard: React.FC<SongCardProps> = ({
                   onClick={handleFavorite}
                 >
                   <Heart className={`h-4 w-4 mr-1 ${song.isFavorite ? 'fill-music-accent' : ''}`} />
-                  {song.favoritedBy?.length || 0}
+                  <span className="text-sm text-gray-400">
+                    {Object.keys(song.favorites || {}).length}
+                  </span>
                 </Button>
 
                 <Button

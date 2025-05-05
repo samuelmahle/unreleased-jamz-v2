@@ -24,7 +24,7 @@ export async function getRecommendedSongs({ userId, userProfile, limit: resultLi
     // First, get the user's liked songs to mark recommendations properly
     const userLikedSongsQuery = query(
       collection(db, 'songs'),
-      where('favoritedBy', 'array-contains', userId)
+      where(`favorites.${userId}`, '!=', null)
     );
     const userLikedSongs = await getDocs(userLikedSongsQuery);
     userLikedSongIds = new Set(userLikedSongs.docs.map(doc => doc.id));

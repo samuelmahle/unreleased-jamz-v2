@@ -114,7 +114,7 @@ export const SongCardActions: React.FC<SongCardActionsProps> = ({
                   }`}
                 />
                 <span className="text-xs text-gray-400 group-hover/btn:text-white">
-                  {formatFavoriteCount(song.favoritedBy?.length || 0)}
+                  {formatFavoriteCount(Object.keys(song.favorites || {}).length)}
                 </span>
               </button>
             </TooltipTrigger>

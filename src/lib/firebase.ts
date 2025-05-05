@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, increment, collection, getDocs, deleteDoc, deleteField } from 'firebase/firestore';
 import { UserProfile } from '@/types/user';
 
 // Your web app's Firebase configuration
@@ -57,10 +57,12 @@ export const logoutUser = async () => {
 export const toggleFavorite = async (userId: string, songId: string) => {
   const userRef = doc(db, 'users', userId);
   const songRef = doc(db, 'songs', songId);
-  
-  // Get current favorite status
-  const isFavorited = (await getDoc(songRef)).data()?.favoritedBy?.includes(userId) ?? false;
-  
+
+  const songDoc = await getDoc(songRef);
+  const songData = songDoc.data();
+  const favorites = songData?.favorites || {};
+  const isFavorited = Object.keys(favorites).includes(userId);
+
   if (isFavorited) {
     // Remove from favorites
     await Promise.all([
@@ -68,8 +70,7 @@ export const toggleFavorite = async (userId: string, songId: string) => {
         favorites: arrayRemove(songId)
       }),
       updateDoc(songRef, {
-        favoritedBy: arrayRemove(userId),
-        favoritedAt: arrayRemove(new Date().toISOString()),
+        [`favorites.${userId}`]: deleteField(),
         favoriteCount: increment(-1)
       })
     ]);
@@ -80,13 +81,12 @@ export const toggleFavorite = async (userId: string, songId: string) => {
         favorites: arrayUnion(songId)
       }),
       updateDoc(songRef, {
-        favoritedBy: arrayUnion(userId),
-        favoritedAt: arrayUnion(new Date().toISOString()),
+        [`favorites.${userId}`]: new Date().toISOString(),
         favoriteCount: increment(1)
       })
     ]);
   }
-  
+
   return !isFavorited;
 };
 
@@ -224,4 +224,32 @@ export const archiveSong = async (songId: string) => {
     console.error('Error archiving song:', error);
     throw error;
   }
+};
+
+export const upvoteSong = async (songId: string, userId: string) => {
+  const songRef = doc(db, 'songs', songId);
+  const userRef = doc(db, 'users', userId);
+  
+  // Update Firebase
+  await updateDoc(songRef, {
+    upvotes: increment(1),
+    upvotedBy: arrayUnion(userId),
+    downvotedBy: arrayRemove(userId)
+  });
+
+  // Award points to the user who upvoted
+  await updateDoc(userRef, {
+    points: increment(1)
+  });
+};
+
+export const downvoteSong = async (songId: string, userId: string) => {
+  const songRef = doc(db, 'songs', songId);
+  
+  // Update Firebase
+  await updateDoc(songRef, {
+    downvotes: increment(1),
+    downvotedBy: arrayUnion(userId),
+    upvotedBy: arrayRemove(userId)
+  });
 };

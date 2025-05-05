@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info, Shield, CheckCircle, AlertTriangle, ListChecks, Edit } from "lucide-react";
+import { Music, Search, Upload, Heart, Home, LogIn, UserPlus, LogOut, User, Archive, Users, Info, Shield, CheckCircle, AlertTriangle, ListChecks, Edit, TrendingUp } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useAuth } from "../contexts/AuthContext";
 import { useAdmin } from "../contexts/AdminContext";
@@ -177,6 +177,16 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                 </Link>
               </>
             )}
+
+            <Link to="/trending">
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-md font-normal text-gray-300 hover:text-white hover:bg-[#282828]"
+              >
+                <TrendingUp className="mr-2 h-5 w-5" />
+                Trending
+              </Button>
+            </Link>
           </nav>
 
           {currentUser && (
@@ -219,6 +229,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSearch }) => {
                 <Heart className={`h-6 w-6 ${isActive('/favorites') ? 'text-purple-500' : 'text-gray-400'}`} />
               </div>
               <span className={`text-xs mt-0.5 ${isActive('/favorites') ? 'text-purple-500' : 'text-gray-400'}`}>Favorites</span>
+            </Link>
+
+            <Link to="/trending" className="flex flex-col items-center">
+              <div className={`p-2 rounded-lg ${isActive('/trending') ? 'bg-[#282828]' : ''}`}>
+                <TrendingUp className={`h-6 w-6 ${isActive('/trending') ? 'text-purple-500' : 'text-gray-400'}`} />
+              </div>
+              <span className={`text-xs mt-0.5 ${isActive('/trending') ? 'text-purple-500' : 'text-gray-400'}`}>Trending</span>
             </Link>
 
             <Link to="/pending" className="flex flex-col items-center">

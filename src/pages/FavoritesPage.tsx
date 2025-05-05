@@ -22,14 +22,21 @@ interface FavoritesPageProps {
   searchTerm: string;
 }
 
-type ReleaseFilter = 'all' | 'upcoming' | 'undated' | 'released';
+type ReleaseFilter = 'all_unreleased' | 'dated' | 'undated' | 'released';
 
 const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
   const { currentUser, userFavorites } = useAuth();
   const navigate = useNavigate();
   const [activeSong, setActiveSong] = useState<string | null>(null);
-  const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>('all');
+  const [releaseFilter, setReleaseFilter] = useState<ReleaseFilter>('all_unreleased');
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
+
+  const releaseFilterOptions = [
+    { value: 'all_unreleased', label: 'All Unreleased Songs' },
+    { value: 'dated', label: 'Dated Songs' },
+    { value: 'undated', label: 'Undated Songs' },
+    { value: 'released', label: 'Released Songs' },
+  ];
 
   useEffect(() => {
     if (!currentUser) {
@@ -86,7 +93,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
 
     try {
       const isFavoriting = !userFavorites.includes(songId);
-      await toggleFavorite(currentUser.uid, songId, isFavoriting);
+      await toggleFavorite(currentUser.uid, songId);
     } catch (error) {
       console.error('Error toggling favorite:', error);
       toast.error('Failed to update favorites');
@@ -97,7 +104,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
     .filter(song => userFavorites?.includes(song.id))
     .filter(song => {
       const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        song.artists.some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
+        (song.artists || []).some(artist => artist.toLowerCase().includes(searchTerm.toLowerCase()));
       
       if (selectedStatus === "all") return matchesSearch;
       if (selectedStatus === "released") return matchesSearch && !song.isUnreleased;
@@ -111,9 +118,10 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
   const filteredSongsBasedOnRelease = filteredSongs
     .filter(song => {
       const releaseDate = parseDate(song.releaseDate);
-      
       switch (releaseFilter) {
-        case 'upcoming':
+        case 'all_unreleased':
+          return !releaseDate || releaseDate > now;
+        case 'dated':
           return releaseDate && releaseDate > now;
         case 'undated':
           return !releaseDate;
@@ -142,7 +150,7 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
     });
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Your Favorites</h1>
         <Select value={releaseFilter} onValueChange={(value: ReleaseFilter) => setReleaseFilter(value)}>
@@ -150,10 +158,9 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
             <SelectValue placeholder="Filter by release" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Songs</SelectItem>
-            <SelectItem value="upcoming">Upcoming Releases</SelectItem>
-            <SelectItem value="undated">Undated Releases</SelectItem>
-            <SelectItem value="released">Released Songs</SelectItem>
+            {releaseFilterOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -163,13 +170,13 @@ const FavoritesPage: React.FC<FavoritesPageProps> = ({ songs, searchTerm }) => {
           <p className="text-xl text-muted-foreground">
             {searchTerm 
               ? 'No favorite songs match your search'
-              : releaseFilter !== 'all'
+              : releaseFilter !== 'all_unreleased'
                 ? `No ${releaseFilter} songs in your favorites`
                 : 'No favorite songs yet. Start adding some!'}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredSongsBasedOnRelease.map((song) => (
             <SongCard
               key={song.id}

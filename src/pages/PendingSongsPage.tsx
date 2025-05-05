@@ -3,17 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { Song } from '@/types/song';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, updateDoc, arrayUnion, arrayRemove, collection, getDocs, increment, getDoc } from 'firebase/firestore';
-import { db, autoVerifyExistingSongs, archiveSong } from '@/lib/firebase';
+import { db, autoVerifyExistingSongs, archiveSong, upvoteSong, downvoteSong } from '@/lib/firebase';
 import { Music } from 'lucide-react';
 import { toast } from 'sonner';
 import SongCard from '@/components/song-card';
 import { POINTS_REWARDS } from '@/types/user';
 import { Button } from '@/components/ui/button';
 
-const PendingSongsPage: React.FC = () => {
+interface PendingSongsPageProps {
+  songs: Song[];
+  searchTerm: string;
+}
+
+const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }) => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [songs, setSongs] = useState<Song[]>([]);
+  const [songsState, setSongs] = useState<Song[]>(songs);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState<string | null>(null);
 
@@ -51,73 +56,28 @@ const PendingSongsPage: React.FC = () => {
 
   const handleUpvote = async (songId: string) => {
     if (!currentUser) {
-      toast.error('Please login to verify songs', {
-        description: 'Create an account to help verify songs',
-        action: {
-          label: 'Login',
-          onClick: () => navigate('/login')
-        },
-      });
+      toast.error('Please sign in to vote');
       return;
     }
 
     setVoting(songId);
     try {
-      const songRef = doc(db, 'songs', songId);
-      const userRef = doc(db, 'users', currentUser.uid);
-      
-      // Update Firebase
-      await updateDoc(songRef, {
-        upvotes: arrayUnion(currentUser.uid),
-        downvotes: arrayRemove(currentUser.uid)
-      });
-
-      // Award points to the user who confirmed the song
-      await updateDoc(userRef, {
-        points: increment(POINTS_REWARDS.CONFIRM_SONG)
-      });
-
-      // Get the updated song data
-      const songDoc = await getDoc(songRef);
-      const songData = songDoc.data();
-      if (songData) {
-        const upvoteCount = (songData.upvotes?.length || 0);
-        
-        // If this is the 3rd upvote, award points to the uploader
-        if (upvoteCount === 3) {
-          const uploaderRef = doc(db, 'users', songData.userId);
-          await updateDoc(uploaderRef, {
-            points: increment(POINTS_REWARDS.UPLOAD_CONFIRMED)
-          });
-        }
-      }
-
-      // Update local state
-      setSongs(prevSongs => 
-        prevSongs.map(song => {
-          if (song.id === songId) {
-            const newUpvotes = Array.from(new Set([...song.upvotes, currentUser.uid]));
-            const newDownvotes = song.downvotes.filter(id => id !== currentUser.uid);
-            
-            // If this upvote puts it at 3 upvotes, remove it from the list
-            if (newUpvotes.length >= 3) {
-              return null;
-            }
-
-            return {
-              ...song,
-              upvotes: newUpvotes,
-              downvotes: newDownvotes
-            };
-          }
-          return song;
-        }).filter(Boolean) as Song[]
+      await upvoteSong(songId, currentUser.uid);
+      setSongs(prevSongs =>
+        prevSongs.map(song =>
+          song.id === songId
+            ? {
+                ...song,
+                upvotes: (song.upvotes || 0) + 1,
+                upvotedBy: [...(song.upvotedBy || []), currentUser.uid]
+              }
+            : song
+        )
       );
-
-      toast.success('Song upvoted successfully');
+      toast.success('Upvoted successfully');
     } catch (error) {
       console.error('Error upvoting:', error);
-      toast.error('Failed to upvote song');
+      toast.error('Failed to upvote');
     } finally {
       setVoting(null);
     }
@@ -125,69 +85,39 @@ const PendingSongsPage: React.FC = () => {
 
   const handleDownvote = async (songId: string) => {
     if (!currentUser) {
-      toast.error('Please login to verify songs', {
-        description: 'Create an account to help verify songs',
-        action: {
-          label: 'Login',
-          onClick: () => navigate('/login')
-        },
-      });
+      toast.error('Please sign in to vote');
       return;
     }
 
     setVoting(songId);
     try {
-      const songRef = doc(db, 'songs', songId);
-      
-      // Update Firebase
-      await updateDoc(songRef, {
-        downvotes: arrayUnion(currentUser.uid),
-        upvotes: arrayRemove(currentUser.uid)
-      });
-
-      // Get updated song data to check net votes
-      const songDoc = await getDoc(songRef);
-      const songData = songDoc.data();
-      if (songData) {
-        const upvoteCount = songData.upvotes?.length || 0;
-        const downvoteCount = songData.downvotes?.length || 0;
-        const netVotes = upvoteCount - downvoteCount;
-
-        // If net votes reach -3, archive the song
-        if (netVotes <= -3) {
-          await archiveSong(songId);
-          toast.success('Song has been archived due to negative votes');
-          // Remove song from the list
-          setSongs(prevSongs => prevSongs.filter(s => s.id !== songId));
-          return;
-        }
-      }
-
-      // Update local state
-      setSongs(prevSongs => 
-        prevSongs.map(song => {
-          if (song.id === songId) {
-            const newDownvotes = Array.from(new Set([...song.downvotes, currentUser.uid]));
-            const newUpvotes = song.upvotes.filter(id => id !== currentUser.uid);
-            
-            return {
-              ...song,
-              downvotes: newDownvotes,
-              upvotes: newUpvotes
-            };
-          }
-          return song;
-        })
+      await downvoteSong(songId, currentUser.uid);
+      setSongs(prevSongs =>
+        prevSongs.map(song =>
+          song.id === songId
+            ? {
+                ...song,
+                downvotes: (song.downvotes || 0) + 1,
+                downvotedBy: [...(song.downvotedBy || []), currentUser.uid]
+              }
+            : song
+        )
       );
-
-      toast.success('Song downvoted successfully');
+      toast.success('Downvoted successfully');
     } catch (error) {
       console.error('Error downvoting:', error);
-      toast.error('Failed to downvote song');
+      toast.error('Failed to downvote');
     } finally {
       setVoting(null);
     }
   };
+
+  const filteredSongs = songsState.filter(song => {
+    const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      song.artist.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesSearch && song.verificationStatus === 'pending';
+  });
 
   if (loading) {
     return (
@@ -229,13 +159,13 @@ const PendingSongsPage: React.FC = () => {
         )}
       </div>
 
-      {songs.length === 0 ? (
+      {filteredSongs.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-xl text-gray-400">No pending songs available</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {songs.map((song) => (
+          {filteredSongs.map((song) => (
             <SongCard
               key={song.id}
               song={song}

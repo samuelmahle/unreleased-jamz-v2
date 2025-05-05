@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { VerificationProvider } from "@/contexts/VerificationContext";
 import AppRoutes from './AppRoutes';
+import TrendingThisWeekPage from './pages/TrendingThisWeekPage';
 
 function App() {
   return (

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { Song } from '@/types/song';
-import { useAuth } from '@/contexts/AuthContext';
-import { useVerification } from '@/contexts/VerificationContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { db } from '../lib/firebase';
+import { Song } from '../types/song';
+import { useAuth } from '../contexts/AuthContext';
+import { useVerification } from '../contexts/VerificationContext';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -16,9 +16,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
+} from "../components/ui/select";
+import { Textarea } from "../components/ui/textarea";
+import { Badge } from "../components/ui/badge";
 import { Timestamp } from 'firebase/firestore';
 
 const GENRES = [
@@ -129,7 +129,13 @@ const EditSongPage = () => {
         releaseDate: formData.releaseDate ? new Date(formData.releaseDate) : null,
         soundcloudUrl: formData.soundcloudUrl || null
       };
-      await proposeEdit(song.id, updates, formData.notes);
+      await proposeEdit(song.id, updates, formData.notes, {
+        title: song.title,
+        artist: song.artist,
+        genre: song.genre,
+        releaseDate: song.releaseDate,
+        soundcloudUrl: song.soundcloudUrl
+      });
       toast.success('Edit proposal submitted for review');
       navigate(`/songs/${song.id}`);
     } catch (error: any) {

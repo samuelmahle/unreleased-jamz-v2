@@ -25,6 +25,8 @@ import { AdminProvider } from '@/contexts/AdminContext';
 import EditSongPage from '@/pages/EditSongPage';
 import SuggestEditPage from '@/pages/SuggestEditPage';
 import EditSuggestionsPage from '@/pages/EditSuggestionsPage';
+import TrendingThisWeekPage from './pages/TrendingThisWeekPage';
+import { Timestamp } from 'firebase/firestore';
 
 function AppRoutes() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -36,21 +38,28 @@ function AppRoutes() {
       const snapshot = await getDocs(collection(db, 'songs'));
       const fetchedSongs = snapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('Song data:', {
-          title: data.title,
-          verificationStatus: data.verificationStatus || 'pending'
-        });
+        console.log('Firestore song data:', data); // Debug log
         return {
           id: doc.id,
-          ...data,
-          isFavorite: currentUser ? data.favoritedBy?.includes(currentUser.uid) : false,
+          title: data.title || '',
+          artist: data.artist || '',
+          genre: data.genre || 'Electronic',
+          releaseDate: data.releaseDate || null,
+          soundcloudUrl: data.soundcloudUrl || null,
+          userId: data.userId || '',
+          createdAt: data.createdAt || Timestamp.now(),
+          updatedAt: data.updatedAt || Timestamp.now(),
+          favorites: data.favorites || {},
+          isFavorite: currentUser ? Object.keys(data.favorites || {}).includes(currentUser.uid) : false,
           verificationStatus: data.verificationStatus || 'pending',
-          confirmations: data.confirmations || 0,
-          reports: data.reports || 0,
-          upvotes: data.upvotes || [],
-          downvotes: data.downvotes || []
-        };
-      }) as Song[];
+          verifiedBy: data.verifiedBy || [],
+          reportedBy: data.reportedBy || [],
+          upvotedBy: data.upvotedBy || [],
+          downvotedBy: data.downvotedBy || [],
+          upvotes: data.upvotes || 0,
+          downvotes: data.downvotes || 0
+        } as Song;
+      });
       setSongs(fetchedSongs);
     };
 
@@ -112,6 +121,10 @@ function AppRoutes() {
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/edit-suggestions" element={<EditSuggestionsPage />} />
               <Route path="/artists/:id" element={<ArtistPage onFavorite={handleToggleFavorite} />} />
+              <Route 
+                path="/trending" 
+                element={<TrendingThisWeekPage songs={songs} setSongs={setSongs} />} 
+              />
             </Routes>
           </div>
         </main>
