@@ -25,7 +25,6 @@ import { AdminProvider } from '@/contexts/AdminContext';
 import EditSongPage from '@/pages/EditSongPage';
 import SuggestEditPage from '@/pages/SuggestEditPage';
 import EditSuggestionsPage from '@/pages/EditSuggestionsPage';
-import TrendingThisWeekPage from './pages/TrendingThisWeekPage';
 import { Timestamp } from 'firebase/firestore';
 
 function AppRoutes() {
@@ -121,10 +120,6 @@ function AppRoutes() {
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/edit-suggestions" element={<EditSuggestionsPage />} />
               <Route path="/artists/:id" element={<ArtistPage onFavorite={handleToggleFavorite} />} />
-              <Route 
-                path="/trending" 
-                element={<TrendingThisWeekPage songs={songs} setSongs={setSongs} />} 
-              />
             </Routes>
           </div>
         </main>
