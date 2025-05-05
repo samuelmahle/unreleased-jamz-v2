@@ -131,6 +131,7 @@ const HomePage: React.FC<HomePageProps> = ({ songs, setSongs, searchTerm }) => {
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
   const filteredSongs = songs
+    .filter(song => song.verificationStatus !== 'pending')
     .filter(song => {
       // Search filter
       const searchLower = searchTerm.toLowerCase();
