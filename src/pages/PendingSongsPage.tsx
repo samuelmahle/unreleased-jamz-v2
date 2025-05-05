@@ -10,47 +10,23 @@ import SongCard from '@/components/song-card';
 import { POINTS_REWARDS } from '@/types/user';
 import { Button } from '@/components/ui/button';
 
-interface PendingSongsPageProps {
-  songs: Song[];
-  searchTerm: string;
-}
-
-const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }) => {
+const PendingSongsPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [songsState, setSongs] = useState<Song[]>(songs);
+  const [pendingSongs, setPendingSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPendingSongs = async () => {
-      try {
-        const snapshot = await getDocs(collection(db, 'songs'));
-        const fetchedSongs = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            upvotes: Array.isArray(data.upvotes) ? data.upvotes : [],
-            downvotes: Array.isArray(data.downvotes) ? data.downvotes : []
-          } as Song;
-        });
-
-        // Filter for pending songs (less than 3 upvotes and not archived)
-        const pendingSongs = fetchedSongs.filter(song => {
-          const upvoteCount = song.upvotes?.length || 0;
-          return upvoteCount < 3 && !song.isArchived;
-        });
-
-        setSongs(pendingSongs);
-      } catch (error) {
-        console.error('Error fetching pending songs:', error);
-        toast.error('Failed to load pending songs');
-      } finally {
-        setLoading(false);
-      }
+      setLoading(true);
+      const snapshot = await getDocs(collection(db, 'songs'));
+      const songs = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Song))
+        .filter(song => song.verificationStatus === 'pending');
+      setPendingSongs(songs);
+      setLoading(false);
     };
-
     fetchPendingSongs();
   }, []);
 
@@ -63,16 +39,12 @@ const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }
     setVoting(songId);
     try {
       await upvoteSong(songId, currentUser.uid);
-      setSongs(prevSongs =>
-        prevSongs.map(song =>
-          song.id === songId
-            ? {
-                ...song,
-                upvotes: (song.upvotes || 0) + 1,
-                upvotedBy: [...(song.upvotedBy || []), currentUser.uid]
-              }
-            : song
-        )
+      const updatedDoc = await getDoc(doc(db, 'songs', songId));
+      const updatedSong = { id: updatedDoc.id, ...updatedDoc.data() } as Song;
+      setPendingSongs(prevSongs =>
+        updatedSong.verificationStatus === 'verified'
+          ? prevSongs.filter(song => song.id !== songId)
+          : prevSongs.map(song => song.id === songId ? updatedSong : song)
       );
       toast.success('Upvoted successfully');
     } catch (error) {
@@ -92,16 +64,12 @@ const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }
     setVoting(songId);
     try {
       await downvoteSong(songId, currentUser.uid);
-      setSongs(prevSongs =>
-        prevSongs.map(song =>
-          song.id === songId
-            ? {
-                ...song,
-                downvotes: (song.downvotes || 0) + 1,
-                downvotedBy: [...(song.downvotedBy || []), currentUser.uid]
-              }
-            : song
-        )
+      const updatedDoc = await getDoc(doc(db, 'songs', songId));
+      const updatedSong = { id: updatedDoc.id, ...updatedDoc.data() } as Song;
+      setPendingSongs(prevSongs =>
+        updatedSong.verificationStatus === 'verified'
+          ? prevSongs.filter(song => song.id !== songId)
+          : prevSongs.map(song => song.id === songId ? updatedSong : song)
       );
       toast.success('Downvoted successfully');
     } catch (error) {
@@ -111,13 +79,6 @@ const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }
       setVoting(null);
     }
   };
-
-  const filteredSongs = songsState.filter(song => {
-    const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      song.artist.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch && song.verificationStatus === 'pending';
-  });
 
   if (loading) {
     return (
@@ -159,13 +120,13 @@ const PendingSongsPage: React.FC<PendingSongsPageProps> = ({ songs, searchTerm }
         )}
       </div>
 
-      {filteredSongs.length === 0 ? (
+      {pendingSongs.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-xl text-gray-400">No pending songs available</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredSongs.map((song) => (
+          {pendingSongs.map((song) => (
             <SongCard
               key={song.id}
               song={song}

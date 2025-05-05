@@ -229,15 +229,40 @@ export const archiveSong = async (songId: string) => {
 export const upvoteSong = async (songId: string, userId: string) => {
   const songRef = doc(db, 'songs', songId);
   const userRef = doc(db, 'users', userId);
-  
-  // Update Firebase
-  await updateDoc(songRef, {
-    upvotes: increment(1),
-    upvotedBy: arrayUnion(userId),
-    downvotedBy: arrayRemove(userId)
-  });
+  const songDoc = await getDoc(songRef);
+  const songData = songDoc.data();
+  const now = new Date().toISOString();
 
-  // Award points to the user who upvoted
+  // Prepare new upvotes/downvotes objects
+  const upvotes = { ...(songData?.upvotes || {}) };
+  const downvotes = { ...(songData?.downvotes || {}) };
+
+  // Toggle upvote
+  if (upvotes[userId]) {
+    delete upvotes[userId];
+  } else {
+    upvotes[userId] = now;
+    delete downvotes[userId];
+  }
+
+  // Calculate net votes
+  const netVotes = Object.keys(upvotes).length - Object.keys(downvotes).length;
+
+  const updateData: any = {
+    upvotes,
+    downvotes
+  };
+
+  if (netVotes >= 3 && songData.verificationStatus !== 'verified') {
+    updateData.verificationStatus = 'verified';
+    updateData.verifiedAt = now;
+  } else if (netVotes < 3 && songData.verificationStatus === 'verified') {
+    updateData.verificationStatus = 'pending';
+    updateData.verifiedAt = null;
+  }
+
+  await updateDoc(songRef, updateData);
+
   await updateDoc(userRef, {
     points: increment(1)
   });
@@ -245,11 +270,37 @@ export const upvoteSong = async (songId: string, userId: string) => {
 
 export const downvoteSong = async (songId: string, userId: string) => {
   const songRef = doc(db, 'songs', songId);
-  
-  // Update Firebase
-  await updateDoc(songRef, {
-    downvotes: increment(1),
-    downvotedBy: arrayUnion(userId),
-    upvotedBy: arrayRemove(userId)
-  });
+  const songDoc = await getDoc(songRef);
+  const songData = songDoc.data();
+  const now = new Date().toISOString();
+
+  // Prepare new upvotes/downvotes objects
+  const upvotes = { ...(songData?.upvotes || {}) };
+  const downvotes = { ...(songData?.downvotes || {}) };
+
+  // Toggle downvote
+  if (downvotes[userId]) {
+    delete downvotes[userId];
+  } else {
+    downvotes[userId] = now;
+    delete upvotes[userId];
+  }
+
+  // Calculate net votes
+  const netVotes = Object.keys(upvotes).length - Object.keys(downvotes).length;
+
+  const updateData: any = {
+    upvotes,
+    downvotes
+  };
+
+  if (netVotes >= 3 && songData.verificationStatus !== 'verified') {
+    updateData.verificationStatus = 'verified';
+    updateData.verifiedAt = now;
+  } else if (netVotes < 3 && songData.verificationStatus === 'verified') {
+    updateData.verificationStatus = 'pending';
+    updateData.verifiedAt = null;
+  }
+
+  await updateDoc(songRef, updateData);
 };

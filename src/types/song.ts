@@ -22,9 +22,7 @@ export interface Song {
   verificationStatus?: 'pending' | 'verified' | 'rejected';
   verifiedBy?: string[];
   reportedBy?: string[];
-  upvotedBy?: string[];
-  downvotedBy?: string[];
-  upvotes?: number;
-  downvotes?: number;
+  upvotes?: { [userId: string]: string };
+  downvotes?: { [userId: string]: string };
   favorites?: { [userId: string]: string };
 }

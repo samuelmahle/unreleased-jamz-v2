@@ -157,7 +157,7 @@ const SongCard: React.FC<SongCardProps> = ({
       {showVerificationStatus && (
         <div className="absolute top-2 right-2">
           <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-            {((song.upvotes?.length || 0) - (song.downvotes?.length || 0))}/3
+            {((Object.keys(song.upvotes || {})).length - (Object.keys(song.downvotes || {})).length)}/3
           </Badge>
         </div>
       )}
@@ -242,30 +242,28 @@ const SongCard: React.FC<SongCardProps> = ({
                   variant="ghost"
                   size="sm"
                   className={`${
-                    song.upvotes?.includes(currentUser?.uid || '')
+                    !!song.upvotes?.[currentUser?.uid]
                       ? 'bg-green-500/10 text-green-500'
                       : 'text-gray-400 hover:text-green-500'
                   }`}
                   onClick={handleUpvote}
-                  disabled={song.confirmedBy?.includes(currentUser?.uid || '')}
                 >
                   <ThumbsUp className="h-4 w-4 mr-1" />
-                  {song.upvotes?.length || 0}
+                  {Object.keys(song.upvotes || {}).length}
                 </Button>
 
                 <Button
                   variant="ghost"
                   size="sm"
                   className={`${
-                    song.downvotes?.includes(currentUser?.uid || '')
+                    !!song.downvotes?.[currentUser?.uid]
                       ? 'bg-red-500/10 text-red-500'
                       : 'text-gray-400 hover:text-red-500'
                   }`}
                   onClick={handleDownvote}
-                  disabled={song.confirmedBy?.includes(currentUser?.uid || '')}
                 >
                   <ThumbsDown className="h-4 w-4 mr-1" />
-                  {song.downvotes?.length || 0}
+                  {Object.keys(song.downvotes || {}).length}
                 </Button>
               </div>
             ) : (

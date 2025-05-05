@@ -61,12 +61,12 @@ const SongPage = () => {
   const canEditSong = (song: Song) => {
     if (!currentUser) return false;
     if (isAdmin || isSuperAdmin) return true;
-    return song.uploadedBy === currentUser.uid;
+    return song.userId === currentUser.uid;
   };
 
   const canReportSong = (song: Song) => {
     if (!currentUser) return false;
-    if (song.uploadedBy === currentUser.uid) return false;
+    if (song.userId === currentUser.uid) return false;
     return true;
   };
 
@@ -108,26 +108,9 @@ const SongPage = () => {
 
   const handleUpvote = async () => {
     if (!song || !currentUser) return;
-    try {
-      await upvoteVerification(song.id);
-      
-      // Refresh song data
-      const updatedDoc = await getDoc(doc(db, 'songs', song.id));
-      const updatedData = updatedDoc.data() as Song;
-        setSong({
-        ...updatedData,
-        id: updatedDoc.id,
-        isFavorite: userFavorites.includes(updatedDoc.id),
-        downvotedBy: updatedData.downvotedBy || [],
-        upvotedBy: updatedData.upvotedBy || [],
-        downvotes: updatedData.downvotes || [],
-        upvotes: updatedData.upvotes || []
-      });
-      
-      toast.success('Song upvoted');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to upvote song');
-    }
+    await upvoteVerification(song.id);
+    const updatedDoc = await getDoc(doc(db, 'songs', song.id));
+    setSong({ id: updatedDoc.id, ...updatedDoc.data() } as Song);
   };
 
   const handleDownvote = async () => {
@@ -135,42 +118,13 @@ const SongPage = () => {
       toast.error('Please select a reason for downvoting');
       return;
     }
-
-    try {
-      await downvoteVerification(song.id);
-      
-      // Add to admin dashboard
-      const downvoteData = {
-        songId: song.id,
-        songTitle: song.title,
-        userId: currentUser.uid,
-        reason: selectedDownvoteReason,
-        details: downvoteDetails.trim(),
-        timestamp: new Date(),
-      };
-      
-      await addDoc(collection(db, 'downvotes'), downvoteData);
-      
-      // Refresh song data
-      const updatedDoc = await getDoc(doc(db, 'songs', song.id));
-      const updatedData = updatedDoc.data() as Song;
-      setSong({
-        ...updatedData,
-        id: updatedDoc.id,
-        isFavorite: userFavorites.includes(updatedDoc.id),
-        downvotedBy: updatedData.downvotedBy || [],
-        upvotedBy: updatedData.upvotedBy || [],
-        downvotes: updatedData.downvotes || [],
-        upvotes: updatedData.upvotes || []
-      });
-      
-      setIsDownvoteDialogOpen(false);
-      setSelectedDownvoteReason('');
-      setDownvoteDetails('');
-      toast.success('Song downvoted');
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to downvote song');
-    }
+    await downvoteVerification(song.id);
+    const updatedDoc = await getDoc(doc(db, 'songs', song.id));
+    setSong({ id: updatedDoc.id, ...updatedDoc.data() } as Song);
+    setIsDownvoteDialogOpen(false);
+    setSelectedDownvoteReason('');
+    setDownvoteDetails('');
+    toast.success('Song downvoted');
   };
 
   const handleReport = async () => {
@@ -222,7 +176,7 @@ const SongPage = () => {
                 <h1 className="text-2xl sm:text-3xl font-bold">{song.title}</h1>
                 {song.verificationStatus === 'pending' && (
                   <Badge variant="outline" className="text-yellow-500 border-yellow-500">
-                    {((song.upvotes?.length || 0) - (song.downvotes?.length || 0))}/3
+                    {((Object.keys(song.upvotes || {}).length || 0) - (Object.keys(song.downvotes || {}).length || 0))}/3
                   </Badge>
                 )}
               </div>
@@ -257,20 +211,20 @@ const SongPage = () => {
                     variant="outline"
                     size="sm"
                     className={`${
-                      song.upvotedBy?.includes(currentUser.uid)
+                      Object.keys(song.upvotes || {}).length > 0
                         ? 'bg-green-500/10 text-green-500 border-green-500'
                         : 'text-gray-400 border-gray-400 hover:bg-green-500/10 hover:text-green-500 hover:border-green-500'
                     }`}
                     onClick={handleUpvote}
                   >
                     <ThumbsUp className="h-4 w-4 mr-2" />
-                    {song.upvotes?.length || 0}
+                    {Object.keys(song.upvotes || {}).length}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className={`${
-                      song.downvotedBy?.includes(currentUser.uid)
+                      Object.keys(song.downvotes || {}).length > 0
                         ? 'bg-red-500/10 text-red-500 border-red-500'
                         : 'text-gray-400 border-gray-400 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500'
                     }`}
